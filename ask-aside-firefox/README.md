@@ -18,6 +18,22 @@ scroll position.
 The extension sends the selected chat context, follow-up thread, and API key
 only to the provider configured in the options. AskAside has no own backend.
 
+## Configuration via `.env` (optional)
+
+Instead of (or in addition to) the options page you can drop a `.env` file into
+this folder:
+
+1. Copy `.env.example` to `.env`
+2. Fill in the values you need (`ASKASIDE_PROVIDER`, `ANTHROPIC_API_KEY`,
+   `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL`)
+3. Reload the add-on in `about:debugging`
+
+The `.env` is bundled with the extension and read at runtime by the background
+script (loaded via the manifest `scripts` array) and the options page. Values act
+as **defaults**: anything you save in the options page (`browser.storage.local`)
+overrides the matching `.env` value. `.env` is gitignored (it holds your keys);
+only `.env.example` is committed.
+
 ## Usage
 
 1. Open `chatgpt.com` or `gemini.google.com` and have a chat
@@ -43,6 +59,7 @@ only to the provider configured in the options. AskAside has no own backend.
 | `content.js` | "?" button in the answer toolbar (inherits the copy button's CSS classes → native look) + floating thread box as a `position: fixed` overlay in the shadow DOM – no interference with the chat's layout/scroll |
 | `background.js` | API call in the background script – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys never leave the extension context |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
+| `env.js` | Reads the optional bundled `.env` and merges it under the stored settings (storage wins) |
 
 ## Known limitations
 

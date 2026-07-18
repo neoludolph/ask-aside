@@ -15,8 +15,8 @@ function updateVisibility() {
 
 providerSel.addEventListener("change", updateVisibility);
 
-browser.storage.local
-  .get(["provider", "apiKey", "openrouterKey", "openrouterModel", "openrouterBaseUrl"])
+AskAsideEnv
+  .loadSettings(["provider", "apiKey", "openrouterKey", "openrouterModel", "openrouterBaseUrl"])
   .then((s) => {
     providerSel.value = s.provider || "anthropic";
     if (s.apiKey) keyInput.value = s.apiKey;
@@ -27,7 +27,7 @@ browser.storage.local
   });
 
 document.getElementById("save").addEventListener("click", async () => {
-  await browser.storage.local.set({
+  await chrome.storage.local.set({
     provider: providerSel.value,
     apiKey: keyInput.value.trim(),
     openrouterKey: orKeyInput.value.trim(),

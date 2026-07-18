@@ -1,7 +1,14 @@
-// Background script: receives follow-up questions from the content script and
+// Service worker: receives follow-up questions from the content script and
 // answers them either via the Claude API (directly) or OpenRouter.
 // Runs in the background so the API key never reaches the page context and
 // CORS is a non-issue (host_permissions cover both endpoints).
+
+try {
+  // Chrome service worker: pull in the `.env` helper.
+  importScripts("env.js");
+} catch (e) {
+  // Firefox loads env.js via the manifest `scripts` array instead.
+}
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = "claude-opus-4-8";
@@ -13,13 +20,14 @@ conversation up to and including the answer the follow-up refers to. Ground your
 response in exactly that answer and the conversation before it. Answer in English,
 clearly and in a way that helps the user learn, without continuing the main chat.`;
 
-browser.runtime.onMessage.addListener((msg) => {
-  if (msg.type !== "ask") return undefined;
-  return handleAsk(msg);
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type !== "ask") return;
+  handleAsk(msg).then(sendResponse);
+  return true; // async response
 });
 
 async function handleAsk({ context, thread }) {
-  const settings = await browser.storage.local.get([
+  const settings = await AskAsideEnv.loadSettings([
     "provider",
     "apiKey",
     "openrouterKey",

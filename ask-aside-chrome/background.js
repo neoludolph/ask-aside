@@ -3,6 +3,13 @@
 // Runs in the background so the API key never reaches the page context and
 // CORS is a non-issue (host_permissions cover both endpoints).
 
+try {
+  // Chrome service worker: pull in the `.env` helper.
+  importScripts("env.js");
+} catch (e) {
+  // Firefox loads env.js via the manifest `scripts` array instead.
+}
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = "claude-opus-4-8";
 const OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1";
@@ -20,7 +27,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 async function handleAsk({ context, thread }) {
-  const settings = await chrome.storage.local.get([
+  const settings = await AskAsideEnv.loadSettings([
     "provider",
     "apiKey",
     "openrouterKey",

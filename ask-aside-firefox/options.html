@@ -47,10 +47,15 @@
   </fieldset>
 
   <p class="hint">All keys are stored only locally in your browser
-     (browser.storage.local) and used exclusively for requests to the selected
+     (chrome.storage.local) and used exclusively for requests to the selected
      provider.</p>
 
+  <p class="hint">Fields may be pre-filled from a bundled <code>.env</code> file
+     (see <code>.env.example</code>). Anything you save here overrides the
+     <code>.env</code> values.</p>
+
   <button id="save">Save</button><span id="status"></span>
+  <script src="env.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

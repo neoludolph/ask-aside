@@ -21,7 +21,7 @@
     "https://openrouter.ai/*"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["env.js", "background.js"]
   },
   "content_scripts": [
     {

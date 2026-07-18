@@ -1,0 +1,4 @@
+# Local configuration with API keys — never commit these.
+# Keep the checked-in `.env.example` templates.
+.env
+**/.env

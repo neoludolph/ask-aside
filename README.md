@@ -36,6 +36,23 @@ provider:
 - **OpenRouter** (`sk-or-…`, from openrouter.ai) with a freely chosen model ID
   from openrouter.ai/models (e.g. `anthropic/claude-sonnet-4.5`, `openai/gpt-4o`)
 
+## Configuration via `.env` (optional)
+
+Both builds can be configured without the options UI by placing a `.env` file in
+the respective folder (copy `.env.example` → `.env`). It is bundled with the
+extension and read at runtime; supported keys:
+
+| Key | Maps to |
+|---|---|
+| `ASKASIDE_PROVIDER` | `anthropic` or `openrouter` |
+| `ANTHROPIC_API_KEY` | Anthropic key (`sk-ant-…`) |
+| `OPENROUTER_API_KEY` | OpenRouter key (`sk-or-…`) |
+| `OPENROUTER_MODEL` | OpenRouter model ID |
+| `OPENROUTER_BASE_URL` | OpenAI-compatible base URL (optional) |
+
+`.env` values are **defaults**; anything saved through the options page overrides
+them. `.env` is gitignored — only the `.env.example` templates are committed.
+
 ## How it works
 
 | File | Responsibility |
@@ -44,6 +61,7 @@ provider:
 | `content.js` | "?" button in the answer toolbar + floating thread box as a `position: fixed` overlay in the shadow DOM – no interference with the chat's layout/scroll |
 | `background.js` | API call in the background – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys never leave the extension context |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
+| `env.js` | Reads the optional bundled `.env` and merges it under the stored settings |
 
 ## Privacy
 
