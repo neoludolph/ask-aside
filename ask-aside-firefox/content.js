@@ -319,7 +319,7 @@
       } else if (
         e.key === "Enter" &&
         !e.shiftKey &&
-        e.composedPath()[0] === textarea
+        shadow.activeElement === textarea
       ) {
         // Enter sends, Shift+Enter inserts a line break.
         e.preventDefault();
