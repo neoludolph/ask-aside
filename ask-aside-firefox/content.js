@@ -396,10 +396,24 @@
       .map((m) => ({ role: m.role, text: m.text }));
 
     let reply;
-    try {
-      reply = await browser.runtime.sendMessage({ type: "ask", context, thread });
-    } catch (err) {
-      reply = { ok: false, error: err.message };
+    // Firefox unloads the non-persistent background page when idle. The first
+    // message after it wakes can fail with "Receiving end does not exist"
+    // because the listener isn't ready yet – so retry a few times with a short
+    // delay to give the background time to spin back up.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        reply = await browser.runtime.sendMessage({ type: "ask", context, thread });
+        break;
+      } catch (err) {
+        const wakingUp = /Receiving end does not exist|establish connection/i.test(
+          err.message || ""
+        );
+        if (wakingUp && attempt < 3) {
+          await new Promise((r) => setTimeout(r, 150));
+          continue;
+        }
+        reply = { ok: false, error: err.message };
+      }
     }
     if (!reply) {
       reply = {
