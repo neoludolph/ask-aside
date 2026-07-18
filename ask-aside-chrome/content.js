@@ -102,9 +102,10 @@
       }
       form button:disabled { opacity: .5; cursor: default; }
 
-      /* Animated "thinking" indicator (replaces the old text). */
-      .thinking { display: flex; align-items: center; justify-content: center; padding: 8px 0; }
-      .thinking svg { width: 48px; height: 48px; }
+      /* Animated "thinking" indicator, shown inside the assistant bubble.
+         Its height is matched to the user's message bubble in JS. */
+      .msg.pending { display: flex; align-items: center; padding: 0 11px; }
+      .msg.pending svg { display: block; height: 62%; width: auto; }
       .anim-pulse-slow  { transform-box: view-box; transform-origin: 50% 50%; animation: aa-pulse 2s ease-in-out infinite; }
       .anim-rotate-cw   { transform-box: view-box; transform-origin: 50% 50%; animation: aa-spin 6s linear infinite; }
       .anim-rotate-ccw  { transform-box: view-box; transform-origin: 50% 50%; animation: aa-spin 9s linear infinite reverse; }
@@ -112,7 +113,7 @@
       @keyframes aa-spin   { to { transform: rotate(360deg); } }
       @keyframes bounce-custom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
       @media (prefers-reduced-motion: reduce) {
-        .anim-pulse-slow, .anim-rotate-cw, .anim-rotate-ccw, .thinking svg path { animation: none !important; }
+        .anim-pulse-slow, .anim-rotate-cw, .anim-rotate-ccw, .msg.pending svg path { animation: none !important; }
       }
     </style>
     <div id="panel">
@@ -410,11 +411,16 @@
     thread.push({ role: "user", text: question });
     renderThread();
 
+    // The user's message bubble was just rendered as the last thread item;
+    // match the thinking bubble's height to it.
+    const userBubble = threadBox.lastElementChild;
+
     const pending = document.createElement("div");
-    pending.className = "thinking";
+    pending.className = "msg assistant pending";
     pending.setAttribute("role", "status");
     pending.setAttribute("aria-label", "Thinking …");
     pending.innerHTML = THINKING_SVG;
+    if (userBubble) pending.style.height = `${userBubble.offsetHeight}px`;
     threadBox.appendChild(pending);
     threadBox.scrollTop = threadBox.scrollHeight;
 
