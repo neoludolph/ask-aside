@@ -52,13 +52,17 @@
         overflow: hidden;
       }
       #panel.open { display: flex; }
+      #panel.resized {
+        max-width: calc(100vw - 16px);
+        max-height: calc(100vh - 16px);
+      }
 
       #panel header {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 14px;
         border-bottom: 1px solid var(--border);
         font-weight: 600;
-        cursor: move;
+        cursor: default;
         user-select: none;
       }
       #close {
@@ -102,6 +106,33 @@
       }
       form button:disabled { opacity: .5; cursor: default; }
 
+      .resize-handle {
+        position: absolute;
+        z-index: 10;
+      }
+      .resize-handle.n { top: 0; left: 8px; right: 8px; height: 6px; cursor: ns-resize; }
+      .resize-handle.e { top: 8px; right: 0; bottom: 8px; width: 6px; cursor: ew-resize; }
+      .resize-handle.s { right: 8px; bottom: 0; left: 8px; height: 6px; cursor: ns-resize; }
+      .resize-handle.w { top: 8px; bottom: 8px; left: 0; width: 6px; cursor: ew-resize; }
+      .resize-handle.se {
+        right: 0; bottom: 0; width: 18px; height: 18px;
+        z-index: 11; cursor: nwse-resize;
+      }
+      .resize-handle.se::after {
+        content: "";
+        position: absolute; right: 4px; bottom: 4px;
+        width: 7px; height: 7px;
+        border-right: 2px solid var(--muted);
+        border-bottom: 2px solid var(--muted);
+        opacity: .75;
+      }
+      #interaction-shield {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: none;
+      }
+
       /* Animated "thinking" indicator, shown inside the assistant bubble.
          Its height is matched to the user's message bubble in JS. */
       .msg.pending { display: flex; align-items: center; padding: 0 11px; }
@@ -125,7 +156,13 @@
           <button type="submit" aria-label="Send" title="Send" disabled>↑</button>
         </div>
       </form>
+      <div class="resize-handle n" data-resize="n"></div>
+      <div class="resize-handle e" data-resize="e"></div>
+      <div class="resize-handle s" data-resize="s"></div>
+      <div class="resize-handle w" data-resize="w"></div>
+      <div class="resize-handle se" data-resize="se" aria-hidden="true"></div>
     </div>
+    <div id="interaction-shield"></div>
   `;
 
   const panel = shadow.getElementById("panel");
@@ -133,6 +170,7 @@
   const form = shadow.querySelector("form");
   const textarea = shadow.querySelector("textarea");
   const sendBtn = form.querySelector("button");
+  const interactionShield = shadow.getElementById("interaction-shield");
 
   const THEMES = {
     light: {
@@ -239,6 +277,9 @@
     thread = [];
     renderThread();
 
+    panel.classList.remove("resized");
+    panel.style.width = "";
+    panel.style.height = "";
     panel.classList.add("open");
     positionPanel(messageEl, btn);
     updateSendState();
@@ -271,23 +312,115 @@
     panel.style.top = `${top}px`;
   }
 
-  // ---------- Drag the panel by its header ----------
+  // ---------- Drag and resize the panel ----------
 
   const header = shadow.querySelector("#panel header");
+  const VIEWPORT_MARGIN = 8;
+  const MIN_PANEL_WIDTH = 300;
+  const MIN_PANEL_HEIGHT = 220;
   let dragging = false;
   let dragDX = 0;
   let dragDY = 0;
+  let resizing = null;
+
+  function showInteractionShield(cursor) {
+    interactionShield.style.cursor = cursor;
+    interactionShield.style.display = "block";
+  }
+
+  function endPointerInteraction() {
+    dragging = false;
+    resizing = null;
+    interactionShield.style.display = "none";
+  }
 
   header.addEventListener("mousedown", (e) => {
     if (e.target.closest("#close")) return; // don't use the close button as a handle
+    if (e.button !== 0) return;
     const rect = panel.getBoundingClientRect();
     dragging = true;
+    resizing = null;
     dragDX = e.clientX - rect.left;
     dragDY = e.clientY - rect.top;
+    showInteractionShield("default");
     e.preventDefault();
   });
 
+  for (const handle of shadow.querySelectorAll("[data-resize]")) {
+    handle.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      const rect = panel.getBoundingClientRect();
+      dragging = false;
+      resizing = {
+        edges: handle.dataset.resize,
+        startX: e.clientX,
+        startY: e.clientY,
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      };
+      panel.classList.add("resized");
+      panel.style.width = `${rect.width}px`;
+      panel.style.height = `${rect.height}px`;
+      showInteractionShield(getComputedStyle(handle).cursor);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  }
+
   document.addEventListener("mousemove", (e) => {
+    if (resizing) {
+      const dx = e.clientX - resizing.startX;
+      const dy = e.clientY - resizing.startY;
+      const rightBoundary = window.innerWidth - VIEWPORT_MARGIN;
+      const bottomBoundary = window.innerHeight - VIEWPORT_MARGIN;
+      let left = resizing.left;
+      let top = resizing.top;
+      let width = resizing.width;
+      let height = resizing.height;
+
+      if (resizing.edges.includes("e")) {
+        const maxWidth = Math.max(1, rightBoundary - resizing.left);
+        const minWidth = Math.min(MIN_PANEL_WIDTH, maxWidth);
+        width = Math.max(minWidth, Math.min(resizing.width + dx, maxWidth));
+      }
+      if (resizing.edges.includes("s")) {
+        const maxHeight = Math.max(1, bottomBoundary - resizing.top);
+        const minHeight = Math.min(MIN_PANEL_HEIGHT, maxHeight);
+        height = Math.max(minHeight, Math.min(resizing.height + dy, maxHeight));
+      }
+      if (resizing.edges.includes("w")) {
+        const minWidth = Math.min(
+          MIN_PANEL_WIDTH,
+          Math.max(1, resizing.right - VIEWPORT_MARGIN)
+        );
+        left = Math.max(
+          VIEWPORT_MARGIN,
+          Math.min(resizing.left + dx, resizing.right - minWidth)
+        );
+        width = resizing.right - left;
+      }
+      if (resizing.edges.includes("n")) {
+        const minHeight = Math.min(
+          MIN_PANEL_HEIGHT,
+          Math.max(1, resizing.bottom - VIEWPORT_MARGIN)
+        );
+        top = Math.max(
+          VIEWPORT_MARGIN,
+          Math.min(resizing.top + dy, resizing.bottom - minHeight)
+        );
+        height = resizing.bottom - top;
+      }
+
+      panel.style.left = `${left}px`;
+      panel.style.top = `${top}px`;
+      panel.style.width = `${width}px`;
+      panel.style.height = `${height}px`;
+      return;
+    }
     if (!dragging) return;
     const W = panel.offsetWidth;
     const H = panel.offsetHeight;
@@ -297,11 +430,10 @@
     panel.style.top = `${top}px`;
   });
 
-  document.addEventListener("mouseup", () => {
-    dragging = false;
-  });
+  document.addEventListener("mouseup", endPointerInteraction);
 
   function closePanel() {
+    endPointerInteraction();
     panel.classList.remove("open");
     thread = [];
     threadBox.innerHTML = "";
