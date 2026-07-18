@@ -10,6 +10,20 @@
   const adapter = getAdapter();
   if (!adapter) return;
 
+  // Animated "thinking" indicator shown while an answer is being generated.
+  // The @keyframes / animation classes it uses are defined in the shadow-DOM
+  // <style> below (the page's own CSS can't reach into the shadow root).
+  const THINKING_SVG = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%" fill="none" aria-hidden="true">
+      <circle cx="50" cy="50" r="14" fill="#FF6363" opacity="0.2" class="anim-pulse-slow"></circle>
+      <path d="M50 15 C50 35, 35 50, 15 50 C35 50, 50 65, 50 85 C50 65, 65 50, 85 50 C65 50, 50 35, 50 15 Z" fill="#FF6363" style="transform-box: fill-box; transform-origin: center; animation: bounce-custom 2s ease-in-out infinite;"></path>
+      <circle cx="50" cy="50" r="38" stroke="#FF6363" stroke-width="1" stroke-dasharray="2 6" opacity="0.4" class="anim-rotate-ccw"></circle>
+      <g class="anim-rotate-cw">
+        <circle cx="50" cy="12" r="4" fill="#FF6363"></circle>
+        <circle cx="50" cy="88" r="2.5" fill="#FF6363" opacity="0.6"></circle>
+      </g>
+    </svg>`;
+
   // ---------- Overlay host with shadow DOM ----------
 
   const host = document.createElement("div");
@@ -87,6 +101,19 @@
         font-size: 17px; line-height: 1; cursor: pointer;
       }
       form button:disabled { opacity: .5; cursor: default; }
+
+      /* Animated "thinking" indicator (replaces the old text). */
+      .thinking { display: flex; align-items: center; justify-content: center; padding: 8px 0; }
+      .thinking svg { width: 48px; height: 48px; }
+      .anim-pulse-slow  { transform-box: view-box; transform-origin: 50% 50%; animation: aa-pulse 2s ease-in-out infinite; }
+      .anim-rotate-cw   { transform-box: view-box; transform-origin: 50% 50%; animation: aa-spin 6s linear infinite; }
+      .anim-rotate-ccw  { transform-box: view-box; transform-origin: 50% 50%; animation: aa-spin 9s linear infinite reverse; }
+      @keyframes aa-pulse  { 0%, 100% { transform: scale(.8); opacity: .15; } 50% { transform: scale(1.2); opacity: .35; } }
+      @keyframes aa-spin   { to { transform: rotate(360deg); } }
+      @keyframes bounce-custom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+      @media (prefers-reduced-motion: reduce) {
+        .anim-pulse-slow, .anim-rotate-cw, .anim-rotate-ccw, .thinking svg path { animation: none !important; }
+      }
     </style>
     <div id="panel">
       <header><span>Follow-up thread</span><button id="close" title="Close">✕</button></header>
@@ -384,8 +411,10 @@
     renderThread();
 
     const pending = document.createElement("div");
-    pending.className = "msg assistant pending";
-    pending.textContent = "Thinking …";
+    pending.className = "thinking";
+    pending.setAttribute("role", "status");
+    pending.setAttribute("aria-label", "Thinking …");
+    pending.innerHTML = THINKING_SVG;
     threadBox.appendChild(pending);
     threadBox.scrollTop = threadBox.scrollHeight;
 
