@@ -296,16 +296,51 @@
     if (e.key === "Escape" && panel.classList.contains("open")) closePanel();
   });
 
-  // Don't pass keyboard events to the page (host app hotkeys).
-  panel.addEventListener("keydown", (e) => e.stopPropagation());
+  // Shield the thread input from the host page's global keyboard handlers.
+  // ChatGPT (and others) install a capture-phase key listener on document that
+  // focuses the main composer as soon as you type "outside" an input – and
+  // because our textarea lives in a (retargeted) shadow DOM, the page thinks
+  // you are typing outside and steals the focus on the very first keystroke.
+  // A capture-phase listener on window runs *before* document's, so we stop the
+  // event there for anything originating in our overlay. stopPropagation does
+  // not cancel the default action, so text is still typed normally – but we now
+  // have to handle Enter/Escape here, as the textarea's own keydown no longer
+  // fires for these events.
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (!panel.classList.contains("open")) return;
+      if (!e.composedPath().includes(host)) return;
+      e.stopPropagation();
 
-  // Enter sends, Shift+Enter inserts a line break.
-  textarea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      form.requestSubmit();
-    }
-  });
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closePanel();
+      } else if (
+        e.key === "Enter" &&
+        !e.shiftKey &&
+        e.composedPath()[0] === textarea
+      ) {
+        // Enter sends, Shift+Enter inserts a line break.
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    },
+    true
+  );
+
+  // Also stop these in the capture phase, so pages that react to key
+  // press / input on document don't see our typing either.
+  for (const type of ["keypress", "keyup", "beforeinput"]) {
+    window.addEventListener(
+      type,
+      (e) => {
+        if (panel.classList.contains("open") && e.composedPath().includes(host))
+          e.stopPropagation();
+      },
+      true
+    );
+  }
 
   // Grow the height to fit the content (up to max-height, after which the
   // textarea scrolls internally – without a visible scrollbar).
