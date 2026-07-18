@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "AskAside",
+  "version": "0.1.0",
+  "description": "Ask follow-up questions about individual AI answers in a side panel, without changing the main chat.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://api.anthropic.com/*",
+    "https://openrouter.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": ["adapters.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_title": "AskAside – Options"
+  }
+}

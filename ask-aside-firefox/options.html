@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AskAside – Options</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; color: #222; }
+    label { display: block; font-weight: 600; margin: 18px 0 6px; }
+    input, select { width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+    button { margin-top: 18px; padding: 8px 16px; border: none; border-radius: 6px; background: #FF6363; color: #fff; cursor: pointer; }
+    #status { margin-left: 10px; color: #FF6363; }
+    p.hint { font-size: 13px; color: #666; margin: 6px 0 0; }
+    fieldset { border: 1px solid #ddd; border-radius: 8px; margin-top: 18px; padding: 0 14px 14px; }
+    fieldset.hidden { display: none; }
+    legend { font-weight: 600; padding: 0 6px; }
+  </style>
+</head>
+<body>
+  <h1>AskAside</h1>
+
+  <label for="provider">Provider</label>
+  <select id="provider">
+    <option value="anthropic">Anthropic (Claude API directly)</option>
+    <option value="openrouter">OpenRouter (free model choice)</option>
+  </select>
+
+  <fieldset id="anthropic-fields">
+    <legend>Anthropic</legend>
+    <label for="key">API key</label>
+    <input id="key" type="password" placeholder="sk-ant-...">
+    <p class="hint">Key from platform.claude.com. Model: claude-opus-4-8.</p>
+  </fieldset>
+
+  <fieldset id="openrouter-fields" class="hidden">
+    <legend>OpenRouter</legend>
+    <label for="or-key">API key</label>
+    <input id="or-key" type="password" placeholder="sk-or-...">
+    <label for="or-model">Model ID</label>
+    <input id="or-model" type="text" placeholder="e.g. anthropic/claude-sonnet-4.5">
+    <p class="hint">Any model ID from openrouter.ai/models, e.g.
+       <code>anthropic/claude-sonnet-4.5</code> or <code>openai/gpt-4o</code>.</p>
+    <label for="or-base">Base URL (optional)</label>
+    <input id="or-base" type="text" placeholder="https://openrouter.ai/api/v1">
+    <p class="hint">Leave empty for OpenRouter. Alternatively, the base URL of
+       another OpenAI-compatible provider (the endpoint
+       <code>&lt;base-URL&gt;/chat/completions</code> must allow CORS).</p>
+  </fieldset>
+
+  <p class="hint">All keys are stored only locally in your browser
+     (browser.storage.local) and used exclusively for requests to the selected
+     provider.</p>
+
+  <button id="save">Save</button><span id="status"></span>
+  <script src="options.js"></script>
+</body>
+</html>
