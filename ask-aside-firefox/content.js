@@ -154,6 +154,7 @@
       .resize-handle.se {
         right: 0; bottom: 0; width: 18px; height: 18px;
         z-index: 11; cursor: nwse-resize;
+        border-bottom-right-radius: 14px;
       }
       .resize-handle.se::after {
         content: "";
@@ -161,6 +162,7 @@
         width: 7px; height: 7px;
         border-right: 2px solid var(--muted);
         border-bottom: 2px solid var(--muted);
+        border-bottom-right-radius: 14px;
         opacity: .75;
       }
       #interaction-shield {
