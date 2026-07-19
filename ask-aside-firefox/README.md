@@ -30,7 +30,7 @@ this folder:
 
 The `.env` is bundled with the extension and read at runtime by the background
 script (loaded via the manifest `scripts` array) and the options page. Values act
-as **defaults**: anything you save in the options page (`browser.storage.local`)
+as **defaults**: anything you save in the options page (extension-local storage)
 overrides the matching `.env` value. `.env` is gitignored (it holds your keys);
 only `.env.example` is committed.
 
@@ -42,24 +42,30 @@ only `.env.example` is committed.
 3. Clicking it opens a floating thread box next to the answer (light/dark to
    match the page): the follow-up thread with its own input field
    (Enter sends, Shift+Enter inserts a line break, Esc closes)
-4. As context, the main chat **up to and including** the anchored answer is sent
+4. Drag the panel by its header. Resize it from any edge or use the visible grip
+   in the bottom-right corner. Its default size and automatic position are
+   restored whenever a thread is opened.
+5. As context, the main chat **up to and including** the anchored answer is sent
    to the API – later messages and the thread itself stay separate from the main
    chat. The anchored answer is not repeated in the panel (you already see it in
    the main chat)
-5. Close the panel (✕ / click outside / Esc) → the main chat is exactly where it
+6. Close the panel (✕ / click outside / Esc) → the main chat is exactly where it
    was. Threads are **not persisted**: they live only in memory and any leftover
-   thread data in `browser.storage.local` is cleared on close, so reopening starts
-   fresh.
+   thread data in extension-local storage is cleared on close, so reopening
+   starts fresh.
 
 ## Architecture
 
 | File | Responsibility |
 |---|---|
 | `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT and Gemini. New sites: add an object + a `manifest.json` match |
-| `content.js` | "?" button in the answer toolbar (inherits the copy button's CSS classes → native look) + floating thread box as a `position: fixed` overlay in the shadow DOM – no interference with the chat's layout/scroll |
-| `background.js` | API call in the background script – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys never leave the extension context |
+| `content.js` | "?" button, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
+| `background.js` | API call in the background script – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys are kept out of the page context and sent directly to the configured API |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
 | `env.js` | Reads the optional bundled `.env` and merges it under the stored settings (storage wins) |
+
+When `OPENROUTER_BASE_URL` points to an origin other than OpenRouter, add that
+origin to `host_permissions` in `manifest.json` and reload the extension.
 
 ## Known limitations
 
@@ -71,3 +77,7 @@ only `.env.example` is committed.
 - Answers do not (yet) stream; they arrive as a whole.
 - A temporarily loaded extension is removed when Firefox restarts and must then
   be loaded again through `about:debugging`.
+
+## License
+
+Licensed under the [MIT License](../LICENSE). Copyright © 2026 Neo Ludolph.
