@@ -42,7 +42,9 @@ committed.
    appears above the input in quotation marks; its **"✕"** removes the passage
    focus for subsequent questions without closing or clearing the thread. When
    sent, the passage moves into a compact quoted header in the user bubble and
-   the next question starts without a passage focus.
+   the next question starts without a passage focus. While the thread stays
+   open, selecting text in any AI answer immediately replaces the composer
+   reference and makes that response the thread's current whole-answer anchor.
 4. Clicking either question-mark button opens a floating thread box next to the
    answer (light/dark to
    match the page): the follow-up thread with its own input field

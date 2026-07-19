@@ -14,18 +14,19 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = "claude-opus-4-8";
 const OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1";
 
-const SYSTEM_PROMPT = `You answer follow-up questions about a specific answer from an
-AI chat the user is having with another assistant. You receive the prior
-conversation up to and including the answer the follow-up refers to. Ground your
-response in exactly that answer and the conversation before it. Always answer in
-the same language as the user's current follow-up question. For the first turn,
-use the language of the text after "Follow-up:", not the language of the quoted
-conversation. If the question has no discernible language, use the language of
-the preceding follow-up. Answer clearly and in a way that helps the user learn,
-without continuing the main chat. When a follow-up includes a selected passage,
-focus that turn on the passage while using the full conversation for context. A
-later follow-up without a selected passage refers to the whole last assistant
-answer; do not retroactively change the focus of earlier turns.`;
+const SYSTEM_PROMPT = `You answer follow-up questions about answers from an AI
+chat the user is having with another assistant. You receive the prior main-chat
+conversation through the furthest answer referenced by the follow-up thread.
+Each user turn identifies the exact assistant answer it refers to. Ground that
+turn in its identified answer while using the main conversation and preceding
+thread for context. Always answer in the same language as the user's current
+follow-up question. For the first turn, use the language of the text after
+"Follow-up:", not the language of the quoted conversation or referenced answer.
+If the question has no discernible language, use the language of the preceding
+follow-up. Answer clearly and in a way that helps the user learn, without
+continuing the main chat. When a turn includes a selected passage, focus that
+turn on the passage within its identified answer. Do not retroactively change
+the answer or passage focus of earlier turns.`;
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type !== "ask") return;
@@ -50,15 +51,23 @@ async function handleAsk({ context, thread }) {
     .join("\n\n");
 
   const serializeUserTurn = (turn) => {
+    const answer =
+      typeof turn.anchorAnswer === "string" && turn.anchorAnswer.trim()
+        ? turn.anchorAnswer
+        : null;
     const passage =
       typeof turn.selectedPassage === "string" && turn.selectedPassage.trim()
         ? turn.selectedPassage
         : null;
+    const answerReference = answer
+      ? `This follow-up refers to the following assistant answer:\n` +
+        `Referenced answer: ${JSON.stringify(answer)}\n\n`
+      : `This follow-up refers to the last assistant answer in the conversation.\n\n`;
     const focus = passage
       ? `This follow-up specifically refers to the following selected passage ` +
-        `from the last assistant answer:\nSelected passage: ${JSON.stringify(passage)}\n\n`
+        `within that referenced answer:\nSelected passage: ${JSON.stringify(passage)}\n\n`
       : "";
-    return `${focus}Follow-up: ${turn.text}`;
+    return `${answerReference}${focus}Follow-up: ${turn.text}`;
   };
 
   const [firstQuestion, ...rest] = thread;
@@ -67,7 +76,7 @@ async function handleAsk({ context, thread }) {
       role: "user",
       content:
         `<conversation>\n${transcript}\n</conversation>\n\n` +
-        `The follow-up refers to the last assistant answer in the conversation.\n\n` +
+        `Each follow-up below states which assistant answer it refers to.\n\n` +
         serializeUserTurn(firstQuestion),
     },
     ...rest.map((m) => ({

@@ -15,6 +15,8 @@ at the selection and opens the thread with that passage shown above the input.
 Removing the passage with its **"✕" button** keeps the thread open and changes
 subsequent questions back to the whole anchored answer. When a focused question
 is sent, its passage moves into a compact quoted header inside the user bubble.
+While the thread remains open, selecting a passage in any AI answer immediately
+updates the composer reference and makes that answer the thread's current anchor.
 
 ## Repository layout
 

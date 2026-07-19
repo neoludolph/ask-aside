@@ -381,6 +381,7 @@
 
   let anchorMsg = null;
   let anchorIndex = -1;
+  let contextEndIndex = -1;
   let thread = [];
   let activePassage = null;
   let pendingSelection = null;
@@ -422,7 +423,6 @@
   }
 
   function getValidSelection() {
-    if (panel.classList.contains("open")) return null;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return null;
 
@@ -430,25 +430,36 @@
     if (!text.trim()) return null;
 
     const range = selection.getRangeAt(0);
-    const message = adapter.getMessages().find(
-      (m) => {
-        const contentEl = m.contentEl || m.el;
-        return (
-          m.role === "assistant" &&
-          contentEl.contains(range.startContainer) &&
-          contentEl.contains(range.endContainer)
-        );
-      }
-    );
-    if (!message) return null;
+    const messages = adapter.getMessages();
+    const messageIndex = messages.findIndex((m) => {
+      const contentEl = m.contentEl || m.el;
+      return (
+        m.role === "assistant" &&
+        contentEl.contains(range.startContainer) &&
+        contentEl.contains(range.endContainer)
+      );
+    });
+    if (messageIndex < 0) return null;
+    const message = messages[messageIndex];
 
     const rect = getSelectionEndpointRect(selection, range);
     if (!rect) return null;
-    return { messageEl: message.el, text, rect };
+    return { message, messageEl: message.el, messageIndex, text, rect };
   }
 
   function refreshSelectionTrigger() {
     const candidate = getValidSelection();
+    if (panel.classList.contains("open")) {
+      dismissSelectionTrigger();
+      if (candidate) {
+        anchorMsg = candidate.message;
+        anchorIndex = candidate.messageIndex;
+        contextEndIndex = Math.max(contextEndIndex, anchorIndex);
+        activePassage = candidate.text;
+        updateSelectionReference();
+      }
+      return;
+    }
     if (!candidate) {
       dismissSelectionTrigger();
       return;
@@ -578,6 +589,7 @@
     }
     if (anchorIndex < 0) return;
     anchorMsg = messages[anchorIndex];
+    contextEndIndex = anchorIndex;
     activePassage = typeof passage === "string" && passage.length ? passage : null;
 
     applyTheme();
@@ -747,6 +759,7 @@
 
   function clearThread() {
     thread = [];
+    contextEndIndex = anchorIndex;
     renderThread();
     textarea.value = "";
     autoGrow();
@@ -1394,7 +1407,14 @@
     autoGrow();
     sendBtn.disabled = true;
     const submittedPassage = activePassage;
-    thread.push({ role: "user", text: question, selectedPassage: submittedPassage });
+    const submittedAnchorMsg = anchorMsg;
+    const submittedAnchorIndex = anchorIndex;
+    thread.push({
+      role: "user",
+      text: question,
+      anchorAnswer: submittedAnchorMsg?.text || "",
+      selectedPassage: submittedPassage,
+    });
     activePassage = null;
     updateSelectionReference();
     renderThread();
@@ -1410,7 +1430,7 @@
     // Context: main chat up to and including the anchored answer.
     const context = adapter
       .getMessages()
-      .slice(0, anchorIndex + 1)
+      .slice(0, contextEndIndex + 1)
       .map((m) => ({ role: m.role, text: m.text }));
 
     let reply;
@@ -1453,6 +1473,8 @@
       }
     } else {
       thread.pop(); // don't keep a failed question
+      anchorMsg = submittedAnchorMsg;
+      anchorIndex = submittedAnchorIndex;
       activePassage = submittedPassage;
       updateSelectionReference();
       renderThread();
