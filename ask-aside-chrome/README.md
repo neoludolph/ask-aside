@@ -1,7 +1,7 @@
 # AskAside (Chrome extension)
 
-Ask follow-up questions about individual AI answers in ChatGPT and Gemini as a
-separate thread in a side panel – without changing the linear main chat or its
+Ask follow-up questions about individual AI answers in ChatGPT, Gemini, and
+Perplexity as a separate thread in a side panel – without changing the linear main chat or its
 scroll position.
 
 ## Installation (developer mode)
@@ -34,7 +34,7 @@ committed.
 
 ## Usage
 
-1. Open `chatgpt.com` or `gemini.google.com` and have a chat
+1. Open `chatgpt.com`, `gemini.google.com`, or `perplexity.ai` and have a chat
 2. Under each AI answer, a **"?" button** appears in the action toolbar
    (far right, next to the other icons)
 3. Alternatively, select text within an AI answer and use the floating **"?"**
@@ -66,7 +66,7 @@ committed.
 
 | File | Responsibility |
 |---|---|
-| `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT and Gemini. New sites: add an object + a `manifest.json` match |
+| `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT, Gemini, and Perplexity. New sites: add an object + a `manifest.json` match |
 | `content.js` | Toolbar and selection "?" buttons, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
 | `background.js` | API call in the service worker – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys are kept out of the page context and sent directly to the configured API |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
@@ -82,6 +82,9 @@ origin to `host_permissions` in `manifest.json` and reload the extension.
 - The Gemini adapter's selectors (`conversation-container`, `model-response`,
   copy button) are based on Gemini's known DOM and may need adjusting if Google
   changes the markup.
+- The Perplexity adapter's selectors (`[data-renderer="lm"]`, the answer copy
+  button) are based on Perplexity's known DOM and may need adjusting if
+  Perplexity changes the markup.
 - Answers do not (yet) stream; they arrive as a whole.
 
 ## License

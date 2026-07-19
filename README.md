@@ -1,7 +1,7 @@
 # AskAside
 
-Ask follow-up questions about individual AI answers in **ChatGPT** and **Gemini**
-as a separate thread in a side panel – without changing the linear main chat or
+Ask follow-up questions about individual AI answers in **ChatGPT**, **Gemini**,
+and **Perplexity** as a separate thread in a side panel – without changing the linear main chat or
 its scroll position.
 
 Under each AI answer a **"?" button** appears in the action toolbar. Clicking it
@@ -119,7 +119,7 @@ build's `manifest.json` and reloading the extension.
 
 | File | Responsibility |
 |---|---|
-| `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT and Gemini. New sites: add an object + a `manifest.json` match |
+| `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT, Gemini, and Perplexity. New sites: add an object + a `manifest.json` match |
 | `content.js` | Toolbar and selection "?" buttons, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
 | `background.js` | API call in the background – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys are kept out of the page context and sent directly to the configured API |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
@@ -135,8 +135,9 @@ time. API keys and other saved settings remain stored locally.
 
 ## Known limitations
 
-- The ChatGPT and Gemini adapters rely on each site's current DOM markup and may
-  need updating if OpenAI or Google change their markup.
+- The ChatGPT, Gemini, and Perplexity adapters rely on each site's current DOM
+  markup and may need updating if OpenAI, Google, or Perplexity change their
+  markup.
 - Answers do not (yet) stream; they arrive as a whole.
 
 ## License
