@@ -113,6 +113,11 @@
         margin: 0 0 8px; padding: 2px 0 2px 10px;
         border-left: 3px solid var(--border); color: var(--muted);
       }
+      .msg.markdown math { font-size: 1.05em; }
+      .msg.markdown math[display="block"] {
+        display: block; margin: 10px 0; text-align: center;
+        overflow-x: auto; overflow-y: hidden;
+      }
 
       form { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
       .input-wrap { position: relative; display: flex; }
@@ -562,7 +567,294 @@
   // actually uses: headings, bold/italic, inline & fenced code, lists, block-
   // quotes, links and paragraphs. All raw text is HTML-escaped up front, so the
   // only markup produced is what this function emits.
+  // ---------- LaTeX -> MathML ----------
+  // A content script can't pull in KaTeX/MathJax (CSP) or ship font files, so
+  // math is converted to native MathML, which Chrome and Firefox render without
+  // any extra assets. This covers the constructs chat answers actually use:
+  // fractions, roots, super/subscripts, sums/integrals with limits, Greek
+  // letters, common operators, \left/\right delimiters and accents.
+  const MATH_GREEK = {
+    alpha:"α",beta:"β",gamma:"γ",delta:"δ",epsilon:"ε",
+    varepsilon:"ε",zeta:"ζ",eta:"η",theta:"θ",vartheta:"ϑ",
+    iota:"ι",kappa:"κ",lambda:"λ",mu:"μ",nu:"ν",xi:"ξ",
+    pi:"π",varpi:"ϖ",rho:"ρ",varrho:"ϱ",sigma:"σ",
+    varsigma:"ς",tau:"τ",upsilon:"υ",phi:"φ",varphi:"ϕ",
+    chi:"χ",psi:"ψ",omega:"ω",Gamma:"Γ",Delta:"Δ",
+    Theta:"Θ",Lambda:"Λ",Xi:"Ξ",Pi:"Π",Sigma:"Σ",
+    Upsilon:"Υ",Phi:"Φ",Psi:"Ψ",Omega:"Ω"
+  };
+  const MATH_OPS = {
+    times:"×",div:"÷",cdot:"⋅",pm:"±",mp:"∓",ast:"∗",
+    star:"⋆",circ:"∘",bullet:"∙",leq:"≤",le:"≤",
+    geq:"≥",ge:"≥",neq:"≠",ne:"≠",equiv:"≡",sim:"∼",
+    simeq:"≃",approx:"≈",cong:"≅",propto:"∝",ll:"≪",
+    gg:"≫",prec:"≺",succ:"≻",infty:"∞",partial:"∂",
+    nabla:"∇",forall:"∀",exists:"∃",nexists:"∄",in:"∈",
+    notin:"∉",ni:"∋",subset:"⊂",subseteq:"⊆",supset:"⊃",
+    supseteq:"⊇",cup:"∪",cap:"∩",emptyset:"∅",
+    varnothing:"∅",setminus:"∖",to:"→",rightarrow:"→",
+    Rightarrow:"⇒",leftarrow:"←",Leftarrow:"⇐",
+    leftrightarrow:"↔",Leftrightarrow:"⇔",mapsto:"↦",
+    implies:"⟹",iff:"⟺",ldots:"…",dots:"…",cdots:"⋯",
+    vdots:"⋮",ddots:"⋱",angle:"∠",perp:"⊥",parallel:"∥",
+    mid:"∣",wedge:"∧",land:"∧",vee:"∨",lor:"∨",
+    neg:"¬",lnot:"¬",oplus:"⊕",ominus:"⊖",otimes:"⊗",
+    odot:"⊙",prime:"′",deg:"°",hbar:"ℏ",ell:"ℓ",
+    Re:"ℜ",Im:"ℑ",aleph:"ℵ",wp:"℘",langle:"⟨",
+    rangle:"⟩",lfloor:"⌊",rfloor:"⌋",lceil:"⌈",rceil:"⌉",
+    vert:"|",Vert:"‖",nmid:"∤",top:"⊤",bot:"⊥",
+    sum:"∑",prod:"∏",coprod:"∐",int:"∫",oint:"∮",
+    bigcup:"⋃",bigcap:"⋂",bigoplus:"⨁",bigotimes:"⨂",
+    bigwedge:"⋀",bigvee:"⋁"
+  };
+  const MATH_BIG = new Set(["sum","prod","coprod","int","oint","bigcup","bigcap",
+    "bigoplus","bigotimes","bigwedge","bigvee"]);
+  const MATH_LIM = new Set(["lim","limsup","liminf","max","min","sup","inf",
+    "det","gcd","Pr","argmax","argmin"]);
+  const MATH_FUNC = new Set(["sin","cos","tan","cot","sec","csc","arcsin",
+    "arccos","arctan","sinh","cosh","tanh","coth","log","ln","exp","deg","dim",
+    "ker","hom","arg"]);
+  const MATH_BB = {R:"ℝ",N:"ℕ",Z:"ℤ",Q:"ℚ",C:"ℂ",H:"ℍ",P:"ℙ"};
+  const MATH_ACCENT = {hat:"^",widehat:"^",tilde:"~",
+    widetilde:"~",bar:"¯",overline:"¯",vec:"→",dot:"˙",
+    ddot:"¨",check:"ˇ",acute:"´",grave:"`",breve:"˘"};
+
+  function latexToMathML(latex, display) {
+    const escT = (s) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const tokens =
+      latex.match(/\\[a-zA-Z]+|\\.|\s+|[{}^_&[\]]|[^\\{}^_&\s[\]]/g) || [];
+    let pos = 0;
+    let atomBig = false; // set when the atom just parsed takes under/over limits
+
+    const peek = () => tokens[pos];
+    const isSpace = (t) => t !== undefined && /^\s+$/.test(t);
+    const skipSpace = () => {
+      while (isSpace(peek())) pos++;
+    };
+
+    function mapSym(name) {
+      if (MATH_GREEK[name]) return { mml: `<mi>${MATH_GREEK[name]}</mi>` };
+      if (MATH_OPS[name]) {
+        const big = MATH_BIG.has(name);
+        if (big) atomBig = true;
+        return { mml: `<mo>${escT(MATH_OPS[name])}</mo>`, big };
+      }
+      return null;
+    }
+
+    function delimiter() {
+      skipSpace();
+      const t = peek();
+      if (t === undefined) return "";
+      pos++;
+      if (t === ".") return ""; // \left. / \right. => no delimiter
+      let ch = t;
+      if (t[0] === "\\") {
+        const n = t.slice(1);
+        ch = MATH_OPS[n] || n;
+      }
+      return `<mo>${escT(ch)}</mo>`;
+    }
+
+    function rawGroup() {
+      skipSpace();
+      if (peek() !== "{") {
+        let t = tokens[pos++] || "";
+        return t[0] === "\\" ? t.slice(1) : t;
+      }
+      pos++;
+      let s = "";
+      while (pos < tokens.length && peek() !== "}") {
+        let t = tokens[pos++];
+        s += t[0] === "\\" ? t.slice(1) : t;
+      }
+      if (peek() === "}") pos++;
+      return s;
+    }
+
+    function charAtom(c) {
+      if (/[0-9.]/.test(c)) return `<mn>${c}</mn>`;
+      if (/[a-zA-Z]/.test(c)) return `<mi>${c}</mi>`;
+      if (c === "-") return "<mo>−</mo>";
+      return `<mo>${escT(c)}</mo>`;
+    }
+
+    function command(name) {
+      // Spacing
+      if (name === "," || name === ":" || name === ";" || name === " ")
+        return '<mspace width="0.22em"></mspace>';
+      if (name === "!") return '<mspace width="-0.17em"></mspace>';
+      if (name === "quad") return '<mspace width="1em"></mspace>';
+      if (name === "qquad") return '<mspace width="2em"></mspace>';
+      if (name === "\\") return ""; // line break: ignore inline
+      // Escaped literals
+      if ("{}%#&$_".indexOf(name) >= 0)
+        return name === "_" ? "<mo>_</mo>" : `<mo>${escT(name)}</mo>`;
+
+      if (name === "frac" || name === "dfrac" || name === "tfrac")
+        return `<mfrac>${arg()}${arg()}</mfrac>`;
+      if (name === "binom")
+        return `<mrow><mo>(</mo><mfrac linethickness="0">${arg()}${arg()}</mfrac><mo>)</mo></mrow>`;
+      if (name === "sqrt") {
+        skipSpace();
+        if (peek() === "[") {
+          pos++;
+          const idx = parseSeq("]");
+          return `<mroot>${arg()}<mrow>${idx}</mrow></mroot>`;
+        }
+        return `<msqrt>${arg()}</msqrt>`;
+      }
+      if (name === "text" || name === "textrm" || name === "mbox")
+        return `<mtext>${escT(rawGroup())}</mtext>`;
+      if (name === "mathrm" || name === "operatorname" || name === "mathsf")
+        return `<mi mathvariant="normal">${escT(rawGroup())}</mi>`;
+      if (name === "mathbf" || name === "boldsymbol" || name === "bm")
+        return `<mi mathvariant="bold">${escT(rawGroup())}</mi>`;
+      if (name === "mathit")
+        return `<mi mathvariant="italic">${escT(rawGroup())}</mi>`;
+      if (name === "mathbb") {
+        const s = rawGroup();
+        return [...s].map((c) => `<mi>${MATH_BB[c] || c}</mi>`).join("");
+      }
+      if (name === "mathcal" || name === "mathscr")
+        return `<mi mathvariant="script">${escT(rawGroup())}</mi>`;
+      if (MATH_ACCENT[name])
+        return `<mover accent="true">${arg()}<mo>${escT(MATH_ACCENT[name])}</mo></mover>`;
+      if (name === "left" || name === "right") return delimiter();
+      if (name === "big" || name === "Big" || name === "bigg" || name === "Bigg")
+        return delimiter();
+
+      if (MATH_LIM.has(name)) {
+        atomBig = true;
+        return `<mo movablelimits="true">${name}</mo>`;
+      }
+      if (MATH_FUNC.has(name)) return `<mi>${name}</mi>`;
+
+      const sym = mapSym(name);
+      if (sym) return sym.mml;
+
+      // Unknown command: render its name literally rather than dropping it.
+      return `<mi>${escT(name)}</mi>`;
+    }
+
+    // Parse a single atom (one token, a braced group, or a command with args).
+    function parseAtom() {
+      skipSpace();
+      const t = peek();
+      if (t === undefined) return null;
+      if (t === "}" || t === "]" || t === "&") return null;
+      if (t === "^" || t === "_") return null;
+      if (t === "{") {
+        pos++;
+        return `<mrow>${parseSeq("}")}</mrow>`;
+      }
+      pos++;
+      if (t[0] === "\\") return command(t.slice(1));
+      return charAtom(t);
+    }
+
+    // A script/argument: the next atom, mrow-wrapped so it's a single node.
+    function arg() {
+      atomBig = false;
+      const a = parseAtom();
+      return a == null ? "<mrow></mrow>" : a;
+    }
+
+    function applyScripts(base, sub, sup, big) {
+      const under = big && display;
+      if (sub != null && sup != null)
+        return under
+          ? `<munderover>${base}${sub}${sup}</munderover>`
+          : `<msubsup>${base}${sub}${sup}</msubsup>`;
+      if (sup != null)
+        return under ? `<mover>${base}${sup}</mover>` : `<msup>${base}${sup}</msup>`;
+      if (sub != null)
+        return under ? `<munder>${base}${sub}</munder>` : `<msub>${base}${sub}</msub>`;
+      return base;
+    }
+
+    // Parse a sequence of atoms up to `stop` (consumed) or end/closing brace.
+    function parseSeq(stop) {
+      let out = "";
+      while (pos < tokens.length) {
+        let t = peek();
+        if (stop !== undefined && t === stop) {
+          pos++;
+          break;
+        }
+        if (t === "}") {
+          pos++;
+          break;
+        }
+        if (isSpace(t) || t === "&") {
+          pos++;
+          continue;
+        }
+        atomBig = false;
+        let base = parseAtom();
+        if (base == null) break;
+        const big = atomBig;
+        let sub = null,
+          sup = null;
+        for (;;) {
+          skipSpace();
+          const s = peek();
+          if (s === "^") {
+            pos++;
+            sup = arg();
+          } else if (s === "_") {
+            pos++;
+            sub = arg();
+          } else break;
+        }
+        if (sub != null || sup != null) base = applyScripts(base, sub, sup, big);
+        out += base;
+      }
+      return out;
+    }
+
+    const bodyMml = parseSeq();
+    return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="${
+      display ? "block" : "inline"
+    }"><mrow>${bodyMml}</mrow></math>`;
+  }
+
+  // Replace $$..$$, \[..\], \(..\) and $..$ with rendered MathML, leaving code
+  // spans untouched. Placeholders (private-use chars) survive Markdown/escaping
+  // and are swapped back for the MathML after the Markdown pass.
+  const MATH_RE =
+    /(```[\s\S]*?```)|(`[^`]*`)|(\$\$[\s\S]+?\$\$)|(\\\[[\s\S]+?\\\])|(\\\([\s\S]+?\\\))|(\$(?![\s$])[^\n$]+?(?<![\s$])\$)/g;
+  function protectMath(src, store) {
+    return src.replace(MATH_RE, (m, fenced, code, dd, br, par, dol) => {
+      if (fenced != null || code != null) return m;
+      let latex,
+        display = false;
+      if (dd != null) {
+        latex = dd.slice(2, -2);
+        display = true;
+      } else if (br != null) {
+        latex = br.slice(2, -2);
+        display = true;
+      } else if (par != null) {
+        latex = par.slice(2, -2);
+      } else {
+        latex = dol.slice(1, -1);
+      }
+      let mml;
+      try {
+        mml = latexToMathML(latex.trim(), display);
+      } catch (e) {
+        return m;
+      }
+      store.push(mml);
+      return "" + (store.length - 1) + "";
+    });
+  }
+
   function renderMarkdown(src) {
+    const mathStore = [];
+    src = protectMath(src, mathStore);
     const esc = (s) =>
       s
         .replace(/&/g, "&amp;")
@@ -680,7 +972,11 @@
       out.push(`<p>${inline(para.join("\n")).replace(/\n/g, "<br>")}</p>`);
     }
     closeList();
-    return out.join("");
+    let html = out.join("");
+    if (mathStore.length) {
+      html = html.replace(/[](\d+)[]/g, (_, n) => mathStore[+n] || "");
+    }
+    return html;
   }
 
   function renderThread() {
