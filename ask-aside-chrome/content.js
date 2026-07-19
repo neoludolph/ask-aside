@@ -139,6 +139,18 @@
 
       form { margin-top: auto; padding: 10px 14px; flex-shrink: 0; }
       .input-wrap { position: relative; display: flex; }
+      #command-suggestion {
+        position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 2;
+        display: flex; align-items: center; gap: 10px;
+        padding: 7px 10px;
+        border: 1px solid var(--border); border-radius: 8px;
+        background: var(--bg); color: var(--fg);
+        box-shadow: 0 4px 14px rgba(0,0,0,.16);
+        font-size: 13px;
+      }
+      #command-suggestion[hidden] { display: none; }
+      #command-suggestion code { font-weight: 600; }
+      #command-suggestion span { color: var(--muted); font-size: 12px; }
       textarea {
         flex: 1; resize: none;
         height: 46px; min-height: 46px; max-height: 180px;
@@ -155,7 +167,7 @@
         position: absolute; right: 8px; bottom: 8px;
         width: 30px; height: 30px; padding: 0;
         display: flex; align-items: center; justify-content: center;
-        border: none; border-radius: 8px;
+        border: none; border-radius: 50%;
         background: var(--accent); color: var(--accent-fg);
         font-size: 17px; line-height: 1; cursor: pointer;
       }
@@ -228,6 +240,7 @@
       <div id="thread"></div>
       <form>
         <div class="input-wrap">
+          <div id="command-suggestion" role="status" aria-live="polite" hidden><code>/clear</code><span>Clear thread · Tab to complete</span></div>
           <textarea rows="1" placeholder="Your follow-up about this answer … (Enter to send)"></textarea>
           <button type="submit" aria-label="Send" title="Send" disabled>↑</button>
         </div>
@@ -246,6 +259,7 @@
   const form = shadow.querySelector("form");
   const textarea = shadow.querySelector("textarea");
   const sendBtn = form.querySelector("button");
+  const commandSuggestion = shadow.getElementById("command-suggestion");
   const interactionShield = shadow.getElementById("interaction-shield");
   const FULL_PLACEHOLDER = "Your follow-up about this answer … (Enter to send)";
   const COMPACT_PLACEHOLDER = "Your follow-up";
@@ -579,6 +593,16 @@
         e.preventDefault();
         closePanel();
       } else if (
+        e.key === "Tab" &&
+        shadow.activeElement === textarea &&
+        !commandSuggestion.hidden
+      ) {
+        e.preventDefault();
+        textarea.value = "/clear";
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        autoGrow();
+        updateSendState();
+      } else if (
         e.key === "Enter" &&
         !e.shiftKey &&
         shadow.activeElement === textarea
@@ -613,11 +637,19 @@
       textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
     }
     updatePlaceholder();
+    updateCommandSuggestion();
   }
 
   // Gray out the send button while no text has been entered.
   function updateSendState() {
     sendBtn.disabled = textarea.value.trim() === "";
+  }
+
+  function updateCommandSuggestion() {
+    const value = textarea.value;
+    commandSuggestion.hidden = !(
+      value.length > 0 && value !== "/clear" && "/clear".startsWith(value)
+    );
   }
 
   textarea.addEventListener("input", () => {
