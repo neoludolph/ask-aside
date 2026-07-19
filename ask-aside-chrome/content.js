@@ -119,7 +119,7 @@
         overflow-x: auto; overflow-y: hidden;
       }
 
-      form { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+      form { margin-top: auto; padding: 10px 14px; flex-shrink: 0; }
       .input-wrap { position: relative; display: flex; }
       textarea {
         flex: 1; resize: none;
