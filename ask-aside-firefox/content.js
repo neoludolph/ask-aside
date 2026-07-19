@@ -521,29 +521,11 @@
     selectionTrigger.classList.remove("visible");
   }
 
-  function getSelectionEndpointRect(selection, range) {
-    try {
-      const caretRange = document.createRange();
-      caretRange.setStart(selection.focusNode, selection.focusOffset);
-      caretRange.collapse(true);
-      const caretRect = caretRange.getBoundingClientRect();
-      if (
-        Number.isFinite(caretRect.left) &&
-        Number.isFinite(caretRect.top) &&
-        (caretRect.width > 0 || caretRect.height > 0)
-      ) {
-        return caretRect;
-      }
-    } catch (e) {
-      // Fall back to the selection rectangles below.
-    }
-
-    const rects = Array.from(range.getClientRects());
-    if (!rects.length) return null;
-    const focusIsStart =
-      selection.focusNode === range.startContainer &&
-      selection.focusOffset === range.startOffset;
-    return focusIsStart ? rects[0] : rects[rects.length - 1];
+  function getSelectionEndRect(range) {
+    const rects = Array.from(range.getClientRects()).filter(
+      (rect) => rect.width > 0 && rect.height > 0
+    );
+    return rects.length ? rects[rects.length - 1] : null;
   }
 
   function getValidSelection() {
@@ -566,7 +548,7 @@
     if (messageIndex < 0) return null;
     const message = messages[messageIndex];
 
-    const rect = getSelectionEndpointRect(selection, range);
+    const rect = getSelectionEndRect(range);
     if (!rect) return null;
     return { message, messageEl: message.el, messageIndex, text, rect };
   }
@@ -591,14 +573,23 @@
 
     pendingSelection = candidate;
     const size = 34;
+    const gap = 8;
     const margin = 8;
-    const endpointX = candidate.rect.left + candidate.rect.width / 2;
-    const left = Math.max(
-      margin,
-      Math.min(endpointX - size / 2, window.innerWidth - size - margin)
-    );
-    let top = candidate.rect.top - size - margin;
-    if (top < margin) top = candidate.rect.bottom + margin;
+    const rightFits =
+      candidate.rect.right + gap + size <= window.innerWidth - margin;
+    let left;
+    let top;
+
+    if (rightFits) {
+      left = candidate.rect.right + gap;
+      top = candidate.rect.top + (candidate.rect.height - size) / 2;
+    } else {
+      left = candidate.rect.right - size;
+      top = candidate.rect.top - size - gap;
+      if (top < margin) top = candidate.rect.bottom + gap;
+    }
+
+    left = Math.max(margin, Math.min(left, window.innerWidth - size - margin));
     top = Math.max(margin, Math.min(top, window.innerHeight - size - margin));
 
     selectionTrigger.style.left = `${left}px`;
