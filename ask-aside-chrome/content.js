@@ -169,10 +169,9 @@
         display: none;
       }
 
-      /* Animated "thinking" indicator, shown inside the assistant bubble.
-         Its height is matched to the user's message bubble in JS. */
-      .msg.pending { display: flex; align-items: center; padding: 0 11px; }
-      .msg.pending svg { display: block; height: 62%; width: auto; flex-shrink: 0; }
+      /* Animated one-line "thinking" indicator inside the assistant bubble. */
+      .msg.pending { display: flex; align-items: center; padding: 8px 11px; }
+      .msg.pending svg { display: block; width: 1.25em; height: 1.25em; flex-shrink: 0; }
       .msg.pending .thinking-label {
         margin-left: 8px; color: var(--muted); font-style: italic;
         animation: aa-text-pulse 1.6s ease-in-out infinite;
@@ -839,7 +838,7 @@
   // spans untouched. Placeholders (private-use chars) survive Markdown/escaping
   // and are swapped back for the MathML after the Markdown pass.
   const MATH_RE =
-    /(```[\s\S]*?```)|(`[^`]*`)|(\$\$[\s\S]+?\$\$)|(\\\[[\s\S]+?\\\])|(\\\([\s\S]+?\\\))|(\$(?![\s$])[^\n$]+?(?<![\s$])\$)/g;
+    /(`{2,}[\s\S]*?`{2,})|(`[^`]*`)|(\$\$[\s\S]+?\$\$)|(\\\[[\s\S]+?\\\])|(\\\([\s\S]+?\\\))|(\$(?![\s$])[^\n$]+?(?<![\s$])\$)/g;
   function protectMath(src, store) {
     return src.replace(MATH_RE, (m, fenced, code, dd, br, par, dol) => {
       if (fenced != null || code != null) return m;
@@ -892,6 +891,25 @@
     const out = [];
     let i = 0;
     let listType = null; // "ul" | "ol"
+    // Models occasionally emit two-backtick block fences. They are not strict
+    // CommonMark, but treating a standalone pair like a fence is unambiguous
+    // and avoids turning a whole multi-line answer into malformed inline code.
+    const parseFence = (line) => {
+      const match = line.match(/^ {0,3}(`{2,}|~{3,})([^\r\n]*)$/);
+      if (!match || (match[1][0] === "`" && match[2].includes("`"))) return null;
+      const language = (match[2].trim().split(/\s+/, 1)[0] || "").replace(
+        /[^\w.+#-]/g,
+        ""
+      );
+      return { marker: match[1], language };
+    };
+    const closesFence = (line, marker) => {
+      const candidate = line.replace(/^ {0,3}/, "").trimEnd();
+      return (
+        candidate.length >= marker.length &&
+        [...candidate].every((char) => char === marker[0])
+      );
+    };
     const closeList = () => {
       if (listType) {
         out.push(`</${listType}>`);
@@ -903,17 +921,20 @@
       const line = lines[i];
 
       // Fenced code block
-      const fence = line.match(/^```(.*)$/);
+      const fence = parseFence(line);
       if (fence) {
         closeList();
         const body = [];
         i++;
-        while (i < lines.length && !/^```/.test(lines[i])) {
+        while (i < lines.length && !closesFence(lines[i], fence.marker)) {
           body.push(lines[i]);
           i++;
         }
-        i++; // skip closing fence
-        out.push(`<pre><code>${esc(body.join("\n"))}</code></pre>`);
+        if (i < lines.length) i++; // skip closing fence when present
+        const languageClass = fence.language
+          ? ` class="language-${fence.language}"`
+          : "";
+        out.push(`<pre><code${languageClass}>${esc(body.join("\n"))}</code></pre>`);
         continue;
       }
 
@@ -975,7 +996,7 @@
       while (
         i < lines.length &&
         lines[i].trim() !== "" &&
-        !/^```/.test(lines[i]) &&
+        !parseFence(lines[i]) &&
         !/^#{1,6}\s/.test(lines[i]) &&
         !/^>\s?/.test(lines[i]) &&
         !/^\s*[-*+]\s+/.test(lines[i]) &&
@@ -1065,16 +1086,11 @@
     thread.push({ role: "user", text: question });
     renderThread();
 
-    // The user's message bubble was just rendered as the last thread item;
-    // match the thinking bubble's height to it.
-    const userBubble = threadBox.lastElementChild;
-
     const pending = document.createElement("div");
     pending.className = "msg assistant pending";
     pending.setAttribute("role", "status");
     pending.setAttribute("aria-label", "Thinking …");
     pending.innerHTML = THINKING_SVG;
-    if (userBubble) pending.style.height = `${userBubble.offsetHeight}px`;
     threadBox.appendChild(pending);
     threadBox.scrollTop = threadBox.scrollHeight;
 
