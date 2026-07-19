@@ -134,7 +134,7 @@
       textarea::-webkit-scrollbar { display: none; }
       textarea:focus { border-color: var(--accent); }
       form button {
-        position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+        position: absolute; right: 8px; bottom: 4px;
         width: 30px; height: 30px; padding: 0;
         display: flex; align-items: center; justify-content: center;
         border: none; border-radius: 8px;
