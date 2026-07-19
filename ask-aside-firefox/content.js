@@ -123,8 +123,8 @@
       .input-wrap { position: relative; display: flex; }
       textarea {
         flex: 1; resize: none;
-        height: 38px; min-height: 38px; max-height: 180px;
-        padding: 8px 46px 8px 12px;
+        height: 46px; min-height: 46px; max-height: 180px;
+        padding: 12px 46px 12px 12px;
         font-size: 14px; line-height: 20px;
         border: 1px solid var(--border); border-radius: 10px;
         background: var(--bg); color: var(--fg);
@@ -134,7 +134,7 @@
       textarea::-webkit-scrollbar { display: none; }
       textarea:focus { border-color: var(--accent); }
       form button {
-        position: absolute; right: 8px; bottom: 4px;
+        position: absolute; right: 8px; bottom: 8px;
         width: 30px; height: 30px; padding: 0;
         display: flex; align-items: center; justify-content: center;
         border: none; border-radius: 8px;
@@ -561,7 +561,7 @@
   // Grow the height to fit the content (up to max-height, after which the
   // textarea scrolls internally – without a visible scrollbar).
   function autoGrow() {
-    textarea.style.height = "38px";
+    textarea.style.height = "46px";
     if (textarea.scrollHeight <= textarea.clientHeight) return;
     const borderHeight = textarea.offsetHeight - textarea.clientHeight;
     textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
