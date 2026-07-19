@@ -229,6 +229,25 @@
   const textarea = shadow.querySelector("textarea");
   const sendBtn = form.querySelector("button");
   const interactionShield = shadow.getElementById("interaction-shield");
+  const FULL_PLACEHOLDER = "Your follow-up about this answer … (Enter to send)";
+  const COMPACT_PLACEHOLDER = "Your follow-up";
+  const placeholderMeasure = document.createElement("canvas").getContext("2d");
+
+  function updatePlaceholder() {
+    if (textarea.value || !textarea.clientWidth || !placeholderMeasure) return;
+    const style = getComputedStyle(textarea);
+    placeholderMeasure.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const availableWidth =
+      textarea.clientWidth -
+      parseFloat(style.paddingLeft) -
+      parseFloat(style.paddingRight);
+    textarea.placeholder =
+      placeholderMeasure.measureText(FULL_PLACEHOLDER).width <= availableWidth
+        ? FULL_PLACEHOLDER
+        : COMPACT_PLACEHOLDER;
+  }
+
+  new ResizeObserver(updatePlaceholder).observe(textarea);
 
   const THEMES = {
     light: {
@@ -340,6 +359,7 @@
     panel.style.height = "";
     panel.classList.add("open");
     positionPanel(messageEl, btn);
+    updatePlaceholder();
     updateSendState();
     textarea.focus();
   }
@@ -564,9 +584,11 @@
   // textarea scrolls internally – without a visible scrollbar).
   function autoGrow() {
     textarea.style.height = "46px";
-    if (textarea.scrollHeight <= textarea.clientHeight) return;
-    const borderHeight = textarea.offsetHeight - textarea.clientHeight;
-    textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
+    if (textarea.scrollHeight > textarea.clientHeight) {
+      const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+      textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
+    }
+    updatePlaceholder();
   }
 
   // Gray out the send button while no text has been entered.
