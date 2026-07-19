@@ -530,10 +530,7 @@
 
   shadow.getElementById("close").addEventListener("click", closePanel);
 
-  // Clicking outside or Escape closes the box.
-  document.addEventListener("mousedown", (e) => {
-    if (panel.classList.contains("open") && !host.contains(e.target)) closePanel();
-  });
+  // Keep the thread open until the user explicitly closes it or presses Escape.
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && panel.classList.contains("open")) closePanel();
   });
