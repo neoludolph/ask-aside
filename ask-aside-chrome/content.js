@@ -67,9 +67,11 @@
         user-select: none;
       }
       #close {
+        display: flex; align-items: center; gap: 6px;
         border: none; background: none; font-size: 16px; cursor: pointer;
         color: var(--muted); border-radius: 6px; padding: 2px 7px;
       }
+      #close .close-hint { font-size: 11px; font-weight: 400; }
       #close:hover { background: var(--bubble-ai); color: var(--fg); }
 
       #thread {
@@ -206,7 +208,7 @@
       }
     </style>
     <div id="panel">
-      <header><span>Follow-up thread</span><button id="close" title="Close">✕</button></header>
+      <header><span>Follow-up thread</span><button id="close" title="Close" aria-label="Close (Escape)"><span class="close-hint">(esc)</span><span aria-hidden="true">✕</span></button></header>
       <div id="thread"></div>
       <form>
         <div class="input-wrap">
