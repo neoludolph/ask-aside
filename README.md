@@ -17,6 +17,8 @@ subsequent questions back to the whole anchored answer. When a focused question
 is sent, its passage moves into a compact quoted header inside the user bubble.
 While the thread remains open, selecting a passage in any AI answer immediately
 updates the composer reference and makes that answer the thread's current anchor.
+The color dot in the thread header opens a persistent six-color pastel accent
+palette shared by future threads.
 
 ## Repository layout
 

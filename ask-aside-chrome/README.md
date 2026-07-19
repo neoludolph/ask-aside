@@ -49,6 +49,7 @@ committed.
    answer (light/dark to
    match the page): the follow-up thread with its own input field
    (Enter sends, Shift+Enter inserts a line break, Esc closes)
+   Use the color dot in the header to choose a persistent pastel accent theme.
 5. Drag the panel by its header. Resize it from any edge or use the visible grip
    in the bottom-right corner. Its default size and automatic position are
    restored whenever a thread is opened.

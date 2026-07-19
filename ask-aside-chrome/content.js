@@ -15,12 +15,12 @@
   // <style> below (the page's own CSS can't reach into the shadow root).
   const THINKING_SVG = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%" fill="none" aria-hidden="true">
-      <circle cx="50" cy="50" r="14" fill="#FF6363" opacity="0.2" class="anim-pulse-slow"></circle>
-      <path d="M50 15 C50 35, 35 50, 15 50 C35 50, 50 65, 50 85 C50 65, 65 50, 85 50 C65 50, 50 35, 50 15 Z" fill="#FF6363" style="transform-box: fill-box; transform-origin: center; animation: bounce-custom 2s ease-in-out infinite;"></path>
-      <circle cx="50" cy="50" r="38" stroke="#FF6363" stroke-width="1" stroke-dasharray="2 6" opacity="0.4" class="anim-rotate-ccw"></circle>
+      <circle cx="50" cy="50" r="14" fill="var(--accent)" opacity="0.2" class="anim-pulse-slow"></circle>
+      <path d="M50 15 C50 35, 35 50, 15 50 C35 50, 50 65, 50 85 C50 65, 65 50, 85 50 C65 50, 50 35, 50 15 Z" fill="var(--accent)" style="transform-box: fill-box; transform-origin: center; animation: bounce-custom 2s ease-in-out infinite;"></path>
+      <circle cx="50" cy="50" r="38" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 6" opacity="0.4" class="anim-rotate-ccw"></circle>
       <g class="anim-rotate-cw">
-        <circle cx="50" cy="12" r="4" fill="#FF6363"></circle>
-        <circle cx="50" cy="88" r="2.5" fill="#FF6363" opacity="0.6"></circle>
+        <circle cx="50" cy="12" r="4" fill="var(--accent)"></circle>
+        <circle cx="50" cy="88" r="2.5" fill="var(--accent)" opacity="0.6"></circle>
       </g>
     </svg>
     <span class="thinking-label">Thinking</span>`;
@@ -65,24 +65,70 @@
         width: 34px; height: 34px; padding: 0;
         align-items: center; justify-content: center;
         border: none; border-radius: 50%;
-        background: #FF6363; color: #ffffff;
-        box-shadow: 0 5px 16px rgba(255, 99, 99, .4);
+        background: var(--accent); color: var(--accent-fg);
+        box-shadow: 0 5px 16px rgba(var(--accent-rgb), .4);
         font-size: 18px; line-height: 1; font-weight: 700;
         cursor: pointer;
       }
       #selection-trigger.visible { display: flex; }
       #selection-trigger:focus-visible {
-        outline: 3px solid rgba(255, 99, 99, .35);
+        outline: 3px solid rgba(var(--accent-rgb), .35);
         outline-offset: 3px;
       }
 
       #panel header {
+        position: relative;
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 14px;
         border-bottom: 1px solid var(--border);
         font-weight: 600;
         cursor: default;
         user-select: none;
+      }
+      #header-actions { display: flex; align-items: center; gap: 4px; }
+      #theme-picker { position: relative; display: flex; }
+      #theme-toggle {
+        width: 30px; height: 30px; padding: 0;
+        display: flex; align-items: center; justify-content: center;
+        border: none; border-radius: 7px;
+        background: transparent; cursor: pointer;
+      }
+      #theme-toggle:hover, #theme-toggle[aria-expanded="true"] {
+        background: var(--bubble-ai);
+      }
+      #theme-dot {
+        width: 16px; height: 16px; border-radius: 50%;
+        background: var(--accent);
+        border: 1px solid rgba(0,0,0,.16);
+        box-shadow: 0 0 0 2px var(--bg);
+      }
+      #theme-popover {
+        position: absolute; z-index: 20;
+        top: calc(100% + 8px); right: 0;
+        width: 142px; padding: 9px;
+        display: grid; grid-template-columns: repeat(3, 34px);
+        justify-content: center; gap: 7px;
+        border: 1px solid var(--border); border-radius: 11px;
+        background: var(--bg);
+        box-shadow: 0 8px 24px rgba(0,0,0,.22);
+      }
+      #theme-popover[hidden] { display: none; }
+      .theme-swatch {
+        position: relative;
+        width: 34px; height: 34px; padding: 0;
+        border: 2px solid transparent; border-radius: 50%;
+        background: var(--swatch); color: #252127;
+        font-size: 15px; font-weight: 700; cursor: pointer;
+      }
+      .theme-swatch:hover { transform: scale(1.06); }
+      .theme-swatch[aria-pressed="true"] {
+        border-color: var(--fg);
+        box-shadow: 0 0 0 2px var(--bg);
+      }
+      .theme-swatch[aria-pressed="true"]::after { content: "✓"; }
+      #theme-toggle:focus-visible, .theme-swatch:focus-visible {
+        outline: 3px solid rgba(var(--accent-rgb), .38);
+        outline-offset: 2px;
       }
       #close {
         display: flex; align-items: center; gap: 6px;
@@ -303,7 +349,23 @@
     </style>
     <button id="selection-trigger" type="button" aria-label="Ask about selected text" title="Ask about selected text">?</button>
     <div id="panel">
-      <header><span>Follow-up thread</span><button id="close" title="Close" aria-label="Close (Escape)"><span class="close-hint">(esc)</span><span aria-hidden="true">✕</span></button></header>
+      <header>
+        <span>Follow-up thread</span>
+        <div id="header-actions">
+          <div id="theme-picker">
+            <button id="theme-toggle" type="button" aria-label="Choose accent theme" aria-haspopup="true" aria-expanded="false" title="Choose accent theme"><span id="theme-dot" aria-hidden="true"></span></button>
+            <div id="theme-popover" role="group" aria-label="Pastel accent themes" hidden>
+              <button class="theme-swatch" type="button" data-theme="coral" aria-label="Coral" aria-pressed="false" style="--swatch:#FF9A9A"></button>
+              <button class="theme-swatch" type="button" data-theme="sky" aria-label="Sky" aria-pressed="false" style="--swatch:#8EC5FF"></button>
+              <button class="theme-swatch" type="button" data-theme="lavender" aria-label="Lavender" aria-pressed="false" style="--swatch:#B9A3F5"></button>
+              <button class="theme-swatch" type="button" data-theme="mint" aria-label="Mint" aria-pressed="false" style="--swatch:#7ED7B4"></button>
+              <button class="theme-swatch" type="button" data-theme="peach" aria-label="Peach" aria-pressed="false" style="--swatch:#F6B985"></button>
+              <button class="theme-swatch" type="button" data-theme="rose" aria-label="Rose" aria-pressed="false" style="--swatch:#F0A3C7"></button>
+            </div>
+          </div>
+          <button id="close" title="Close" aria-label="Close (Escape)"><span class="close-hint">(esc)</span><span aria-hidden="true">✕</span></button>
+        </div>
+      </header>
       <div id="thread"></div>
       <form>
         <div id="selection-reference" hidden>
@@ -327,6 +389,10 @@
   `;
 
   const panel = shadow.getElementById("panel");
+  const themePicker = shadow.getElementById("theme-picker");
+  const themeToggle = shadow.getElementById("theme-toggle");
+  const themePopover = shadow.getElementById("theme-popover");
+  const themeSwatches = Array.from(shadow.querySelectorAll(".theme-swatch"));
   const selectionTrigger = shadow.getElementById("selection-trigger");
   const threadBox = shadow.getElementById("thread");
   const form = shadow.querySelector("form");
@@ -357,25 +423,83 @@
 
   new ResizeObserver(updatePlaceholder).observe(textarea);
 
-  const THEMES = {
+  const BASE_THEMES = {
     light: {
       "--bg": "#ffffff", "--fg": "#0d0d0d", "--border": "#e3e3e3",
       "--muted": "#6b6b6b", "--bubble-user": "#e8eef9", "--bubble-ai": "#f3f3f0",
-      "--accent": "#FF6363", "--accent-fg": "#ffffff",
       "--error-bg": "#fdecea", "--error-fg": "#a33a2f",
     },
     dark: {
       "--bg": "#2f2f2f", "--fg": "#ececec", "--border": "#4d4d4d",
       "--muted": "#a8a8a8", "--bubble-user": "#3b4a63", "--bubble-ai": "#3c3c3c",
-      "--accent": "#FF6363", "--accent-fg": "#ffffff",
       "--error-bg": "#5c2b2b", "--error-fg": "#f2b8b5",
     },
   };
 
+  const ACCENT_THEMES = {
+    coral: { color: "#FF9A9A", rgb: "255,154,154" },
+    sky: { color: "#8EC5FF", rgb: "142,197,255" },
+    lavender: { color: "#B9A3F5", rgb: "185,163,245" },
+    mint: { color: "#7ED7B4", rgb: "126,215,180" },
+    peach: { color: "#F6B985", rgb: "246,185,133" },
+    rose: { color: "#F0A3C7", rgb: "240,163,199" },
+  };
+  let accentTheme = "coral";
+
   function applyTheme() {
-    const theme = THEMES[adapter.isDark() ? "dark" : "light"];
-    for (const [k, v] of Object.entries(theme)) panel.style.setProperty(k, v);
+    const base = BASE_THEMES[adapter.isDark() ? "dark" : "light"];
+    const accent = ACCENT_THEMES[accentTheme] || ACCENT_THEMES.coral;
+    const theme = {
+      ...base,
+      "--accent": accent.color,
+      "--accent-rgb": accent.rgb,
+      "--accent-fg": "#252127",
+    };
+    for (const [key, value] of Object.entries(theme)) {
+      host.style.setProperty(key, value);
+    }
+    for (const swatch of themeSwatches) {
+      swatch.setAttribute("aria-pressed", String(swatch.dataset.theme === accentTheme));
+    }
+    for (const button of document.querySelectorAll("[data-askaside]")) {
+      button.style.color = accent.color;
+    }
   }
+
+  function closeThemePopover() {
+    themePopover.hidden = true;
+    themeToggle.setAttribute("aria-expanded", "false");
+  }
+
+  function setAccentTheme(key, persist = false) {
+    accentTheme = ACCENT_THEMES[key] ? key : "coral";
+    applyTheme();
+    if (persist) chrome.storage.local.set({ accentTheme }).catch(() => {});
+  }
+
+  themeToggle.addEventListener("click", () => {
+    const willOpen = themePopover.hidden;
+    themePopover.hidden = !willOpen;
+    themeToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+  for (const swatch of themeSwatches) {
+    swatch.addEventListener("click", () => {
+      setAccentTheme(swatch.dataset.theme, true);
+      closeThemePopover();
+      themeToggle.focus();
+    });
+  }
+  shadow.addEventListener("pointerdown", (e) => {
+    if (!themePicker.contains(e.target)) closeThemePopover();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!e.composedPath().includes(host)) closeThemePopover();
+  });
+  applyTheme();
+  chrome.storage.local
+    .get("accentTheme")
+    .then((stored) => setAccentTheme(stored.accentTheme))
+    .catch(() => setAccentTheme("coral"));
 
   // ---------- State ----------
 
@@ -508,6 +632,7 @@
   document.addEventListener("pointerdown", dismissSelectionTrigger);
   document.addEventListener("scroll", dismissSelectionTrigger, true);
   window.addEventListener("resize", dismissSelectionTrigger);
+  window.addEventListener("resize", closeThemePopover);
 
   removeReference.addEventListener("click", () => {
     activePassage = null;
@@ -541,7 +666,7 @@
       btn.textContent = "?";
       btn.style.fontWeight = "700";
       btn.style.fontSize = "15px";
-      btn.style.color = "#FF6363";
+      btn.style.color = ACCENT_THEMES[accentTheme].color;
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -655,7 +780,7 @@
   }
 
   header.addEventListener("mousedown", (e) => {
-    if (e.target.closest("#close")) return; // don't use the close button as a handle
+    if (e.target.closest("#header-actions")) return;
     if (e.button !== 0) return;
     const rect = panel.getBoundingClientRect();
     dragging = true;
@@ -669,6 +794,7 @@
   for (const handle of shadow.querySelectorAll("[data-resize]")) {
     handle.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
+      closeThemePopover();
       const rect = panel.getBoundingClientRect();
       dragging = false;
       resizing = {
@@ -768,6 +894,7 @@
 
   function closePanel() {
     endPointerInteraction();
+    closeThemePopover();
     panel.classList.remove("open");
     activePassage = null;
     updateSelectionReference();
@@ -784,7 +911,8 @@
   // Keep the thread open until the user explicitly closes it or presses Escape.
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    if (panel.classList.contains("open")) closePanel();
+    if (!themePopover.hidden) closeThemePopover();
+    else if (panel.classList.contains("open")) closePanel();
     else dismissSelectionTrigger();
   });
 
@@ -807,7 +935,8 @@
 
       if (e.key === "Escape") {
         e.preventDefault();
-        closePanel();
+        if (!themePopover.hidden) closeThemePopover();
+        else closePanel();
       } else if (
         e.key === "Tab" &&
         shadow.activeElement === textarea &&
