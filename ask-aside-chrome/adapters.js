@@ -136,6 +136,97 @@ const ADAPTERS = [
       return matchMedia("(prefers-color-scheme: dark)").matches;
     },
   },
+
+  {
+    name: "perplexity",
+    hosts: ["www.perplexity.ai", "perplexity.ai"],
+
+    // Perplexity renders each answer body in <div data-renderer="lm"> (styled as
+    // Tailwind ".prose") and each user question in a
+    // <div class="group/query" role="heading" aria-level="1"> above it. We match
+    // both in one querySelectorAll (document order → interleaved user/assistant)
+    // and, for answers, climb to the block that also holds the copy button so
+    // getCopyButton() and selection checks resolve within one turn. The action
+    // toolbar (Share, Download, Copy, Rewrite, …) is a sibling row just below the
+    // prose, inside that block.
+    getMessages() {
+      const out = [];
+      const seen = new Set();
+      const nodes = document.querySelectorAll(
+        '[data-renderer="lm"], [role="heading"][aria-level="1"], .group\\/query'
+      );
+      for (const node of nodes) {
+        if (seen.has(node)) continue;
+        seen.add(node);
+        if (node.matches('[data-renderer="lm"]')) {
+          let block = node;
+          for (let i = 0; i < 12 && block.parentElement; i++) {
+            block = block.parentElement;
+            if (this.getCopyButton(block)) break;
+          }
+          out.push({
+            el: block,
+            contentEl: node,
+            role: "assistant",
+            text: node.innerText.trim(),
+          });
+        } else {
+          const text = node.innerText.trim();
+          if (text) out.push({ el: node, contentEl: node, role: "user", text });
+        }
+      }
+      return out;
+    },
+
+    // Copy button in the answer toolbar – the "?" is inserted next to it. Match
+    // the localized aria-label first, then fall back to the button that wraps
+    // the copy icon (<use xlink:href="#pplx-icon-copy">) for language safety.
+    getCopyButton(messageEl) {
+      const byLabel = messageEl.querySelector(
+        'button[aria-label="Copy"], button[aria-label="Kopieren"], button[aria-label="Copiar"], button[aria-label="Copier"], button[aria-label="Copia"]'
+      );
+      if (byLabel) return byLabel;
+      for (const b of messageEl.querySelectorAll("button")) {
+        const use = b.querySelector("use");
+        const href =
+          use && (use.getAttribute("xlink:href") || use.getAttribute("href"));
+        if (href && /copy/i.test(href)) return b;
+      }
+      return null;
+    },
+
+    getObserverRoot() {
+      return document.querySelector("main") || document.body;
+    },
+
+    // Thread URL: https://www.perplexity.ai/search/<slug> (also /page/<slug>).
+    getConversationKey() {
+      const m = location.pathname.match(/\/(?:search|page)\/([\w-]+)/);
+      return m ? m[1] : location.pathname;
+    },
+
+    // Perplexity uses Tailwind class-based dark mode, but the exact theme flag
+    // varies; fall back to sampling the page background luminance so the panel
+    // always matches regardless of how the theme is signalled.
+    isDark() {
+      const html = document.documentElement;
+      if (html.classList.contains("dark")) return true;
+      if (html.classList.contains("light")) return false;
+      const attr =
+        html.getAttribute("data-color-scheme") ||
+        html.getAttribute("data-theme") ||
+        document.body.getAttribute("data-color-scheme");
+      if (attr === "dark") return true;
+      if (attr === "light") return false;
+      const bg = getComputedStyle(document.body).backgroundColor;
+      const rgb = bg && bg.match(/\d+/g);
+      if (rgb && rgb.length >= 3) {
+        const [r, g, b] = rgb.map(Number);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;
+      }
+      return matchMedia("(prefers-color-scheme: dark)").matches;
+    },
+  },
 ];
 
 function getAdapter() {

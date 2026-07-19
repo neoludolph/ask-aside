@@ -28,7 +28,9 @@
       "matches": [
         "https://chatgpt.com/*",
         "https://chat.openai.com/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*"
       ],
       "js": ["adapters.js", "content.js"],
       "run_at": "document_idle"
