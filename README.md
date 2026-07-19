@@ -10,6 +10,11 @@ questions with the main chat (up to and including that answer) as context. The
 main chat is never modified and threads are not persisted. The thread box can be
 dragged by its header and resized from any edge or from the bottom-right grip.
 
+You can also select text inside an AI answer. A floating **"?" button** appears
+at the selection and opens the thread with that passage shown above the input.
+Removing the passage with its **"✕" button** keeps the thread open and changes
+subsequent questions back to the whole anchored answer.
+
 ## Repository layout
 
 | Folder | Description |
@@ -64,7 +69,7 @@ build's `manifest.json` and reloading the extension.
 | File | Responsibility |
 |---|---|
 | `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT and Gemini. New sites: add an object + a `manifest.json` match |
-| `content.js` | "?" button, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
+| `content.js` | Toolbar and selection "?" buttons, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
 | `background.js` | API call in the background – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys are kept out of the page context and sent directly to the configured API |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
 | `env.js` | Reads the optional bundled `.env` and merges it under the stored settings |

@@ -58,6 +58,24 @@
         max-height: calc(100vh - 16px);
       }
 
+      #selection-trigger {
+        position: fixed;
+        z-index: 2147483647;
+        display: none;
+        width: 34px; height: 34px; padding: 0;
+        align-items: center; justify-content: center;
+        border: none; border-radius: 50%;
+        background: #FF6363; color: #ffffff;
+        box-shadow: 0 5px 16px rgba(255, 99, 99, .4);
+        font-size: 18px; line-height: 1; font-weight: 700;
+        cursor: pointer;
+      }
+      #selection-trigger.visible { display: flex; }
+      #selection-trigger:focus-visible {
+        outline: 3px solid rgba(255, 99, 99, .35);
+        outline-offset: 3px;
+      }
+
       #panel header {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 14px;
@@ -138,6 +156,33 @@
       }
 
       form { margin-top: auto; padding: 10px 14px; flex-shrink: 0; }
+      #selection-reference {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: start; gap: 9px;
+        margin-bottom: 8px; padding: 9px 10px;
+        border: 1px solid var(--border); border-radius: 9px;
+        background: var(--bubble-ai); color: var(--fg);
+        line-height: 1.4;
+      }
+      #selection-reference[hidden] { display: none; }
+      #selection-reference .reference-arrow {
+        color: var(--accent); font-size: 17px; line-height: 1.2;
+      }
+      #selection-reference q {
+        min-width: 0; max-height: 7.2em; overflow-y: auto;
+        white-space: pre-wrap; overflow-wrap: anywhere;
+        scrollbar-width: none;
+      }
+      #selection-reference q::-webkit-scrollbar { display: none; }
+      #remove-reference {
+        width: 24px; height: 24px; padding: 0;
+        display: flex; align-items: center; justify-content: center;
+        border: none; border-radius: 6px;
+        background: transparent; color: var(--muted);
+        font-size: 16px; line-height: 1; cursor: pointer;
+      }
+      #remove-reference:hover { background: var(--bg); color: var(--fg); }
       .input-wrap { position: relative; display: flex; }
       #command-suggestion {
         position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 2;
@@ -163,7 +208,7 @@
       }
       textarea::-webkit-scrollbar { display: none; }
       textarea:focus { border-color: var(--accent); }
-      form button {
+      #send {
         position: absolute; right: 8px; bottom: 8px;
         width: 30px; height: 30px; padding: 0;
         display: flex; align-items: center; justify-content: center;
@@ -171,7 +216,7 @@
         background: var(--accent); color: var(--accent-fg);
         font-size: 17px; line-height: 1; cursor: pointer;
       }
-      form button:disabled { opacity: .5; cursor: default; }
+      #send:disabled { opacity: .5; cursor: default; }
 
       .resize-handle {
         position: absolute;
@@ -235,14 +280,20 @@
         .msg.streaming > :last-child::after { animation: none !important; }
       }
     </style>
+    <button id="selection-trigger" type="button" aria-label="Ask about selected text" title="Ask about selected text">?</button>
     <div id="panel">
       <header><span>Follow-up thread</span><button id="close" title="Close" aria-label="Close (Escape)"><span class="close-hint">(esc)</span><span aria-hidden="true">✕</span></button></header>
       <div id="thread"></div>
       <form>
+        <div id="selection-reference" hidden>
+          <span class="reference-arrow" aria-hidden="true">→</span>
+          <q id="selected-text"></q>
+          <button id="remove-reference" type="button" aria-label="Remove selected-text reference" title="Remove selected-text reference">✕</button>
+        </div>
         <div class="input-wrap">
           <div id="command-suggestion" role="status" aria-live="polite" hidden><code>/clear</code><span>Clear thread · Tab to complete</span></div>
           <textarea rows="1" placeholder="Your follow-up about this answer … (Enter to send)"></textarea>
-          <button type="submit" aria-label="Send" title="Send" disabled>↑</button>
+          <button id="send" type="submit" aria-label="Send" title="Send" disabled>↑</button>
         </div>
       </form>
       <div class="resize-handle n" data-resize="n"></div>
@@ -255,11 +306,15 @@
   `;
 
   const panel = shadow.getElementById("panel");
+  const selectionTrigger = shadow.getElementById("selection-trigger");
   const threadBox = shadow.getElementById("thread");
   const form = shadow.querySelector("form");
   const textarea = shadow.querySelector("textarea");
-  const sendBtn = form.querySelector("button");
+  const sendBtn = shadow.getElementById("send");
   const commandSuggestion = shadow.getElementById("command-suggestion");
+  const selectionReference = shadow.getElementById("selection-reference");
+  const selectedText = shadow.getElementById("selected-text");
+  const removeReference = shadow.getElementById("remove-reference");
   const interactionShield = shadow.getElementById("interaction-shield");
   const FULL_PLACEHOLDER = "Your follow-up about this answer … (Enter to send)";
   const COMPACT_PLACEHOLDER = "Your follow-up";
@@ -306,6 +361,127 @@
   let anchorMsg = null;
   let anchorIndex = -1;
   let thread = [];
+  let activePassage = null;
+  let pendingSelection = null;
+
+  function updateSelectionReference() {
+    const hasPassage = typeof activePassage === "string" && activePassage.length > 0;
+    selectionReference.hidden = !hasPassage;
+    selectedText.textContent = hasPassage ? activePassage : "";
+  }
+
+  function dismissSelectionTrigger() {
+    pendingSelection = null;
+    selectionTrigger.classList.remove("visible");
+  }
+
+  function getSelectionEndpointRect(selection, range) {
+    try {
+      const caretRange = document.createRange();
+      caretRange.setStart(selection.focusNode, selection.focusOffset);
+      caretRange.collapse(true);
+      const caretRect = caretRange.getBoundingClientRect();
+      if (
+        Number.isFinite(caretRect.left) &&
+        Number.isFinite(caretRect.top) &&
+        (caretRect.width > 0 || caretRect.height > 0)
+      ) {
+        return caretRect;
+      }
+    } catch (e) {
+      // Fall back to the selection rectangles below.
+    }
+
+    const rects = Array.from(range.getClientRects());
+    if (!rects.length) return null;
+    const focusIsStart =
+      selection.focusNode === range.startContainer &&
+      selection.focusOffset === range.startOffset;
+    return focusIsStart ? rects[0] : rects[rects.length - 1];
+  }
+
+  function getValidSelection() {
+    if (panel.classList.contains("open")) return null;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return null;
+
+    const text = selection.toString();
+    if (!text.trim()) return null;
+
+    const range = selection.getRangeAt(0);
+    const message = adapter.getMessages().find(
+      (m) => {
+        const contentEl = m.contentEl || m.el;
+        return (
+          m.role === "assistant" &&
+          contentEl.contains(range.startContainer) &&
+          contentEl.contains(range.endContainer)
+        );
+      }
+    );
+    if (!message) return null;
+
+    const rect = getSelectionEndpointRect(selection, range);
+    if (!rect) return null;
+    return { messageEl: message.el, text, rect };
+  }
+
+  function refreshSelectionTrigger() {
+    const candidate = getValidSelection();
+    if (!candidate) {
+      dismissSelectionTrigger();
+      return;
+    }
+
+    pendingSelection = candidate;
+    const size = 34;
+    const margin = 8;
+    const endpointX = candidate.rect.left + candidate.rect.width / 2;
+    const left = Math.max(
+      margin,
+      Math.min(endpointX - size / 2, window.innerWidth - size - margin)
+    );
+    let top = candidate.rect.top - size - margin;
+    if (top < margin) top = candidate.rect.bottom + margin;
+    top = Math.max(margin, Math.min(top, window.innerHeight - size - margin));
+
+    selectionTrigger.style.left = `${left}px`;
+    selectionTrigger.style.top = `${top}px`;
+    selectionTrigger.classList.add("visible");
+  }
+
+  let selectionRefreshScheduled = false;
+  document.addEventListener("selectionchange", () => {
+    if (selectionRefreshScheduled) return;
+    selectionRefreshScheduled = true;
+    requestAnimationFrame(() => {
+      selectionRefreshScheduled = false;
+      refreshSelectionTrigger();
+    });
+  });
+
+  selectionTrigger.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  selectionTrigger.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const selection = pendingSelection;
+    if (!selection) return;
+    await openThread(selection.messageEl, selectionTrigger, selection.text);
+    dismissSelectionTrigger();
+  });
+
+  document.addEventListener("pointerdown", dismissSelectionTrigger);
+  document.addEventListener("scroll", dismissSelectionTrigger, true);
+  window.addEventListener("resize", dismissSelectionTrigger);
+
+  removeReference.addEventListener("click", () => {
+    activePassage = null;
+    updateSelectionReference();
+    textarea.focus();
+  });
 
   // ---------- Insert the "?" button into the answer toolbar ----------
 
@@ -370,7 +546,7 @@
 
   // ---------- Open / position the panel ----------
 
-  async function openThread(messageEl, btn) {
+  async function openThread(messageEl, btn, passage = null) {
     const messages = adapter.getMessages();
     anchorIndex = messages.findIndex((m) => m.el === messageEl);
     if (anchorIndex < 0) {
@@ -381,10 +557,12 @@
     }
     if (anchorIndex < 0) return;
     anchorMsg = messages[anchorIndex];
+    activePassage = typeof passage === "string" && passage.length ? passage : null;
 
     applyTheme();
     thread = [];
     renderThread();
+    updateSelectionReference();
 
     panel.classList.remove("resized");
     panel.style.width = "";
@@ -557,6 +735,8 @@
   function closePanel() {
     endPointerInteraction();
     panel.classList.remove("open");
+    activePassage = null;
+    updateSelectionReference();
     clearThread();
     // Remove stale thread data from browser storage (API key etc. stays).
     browser.storage.local.get(null).then((all) => {
@@ -569,7 +749,9 @@
 
   // Keep the thread open until the user explicitly closes it or presses Escape.
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && panel.classList.contains("open")) closePanel();
+    if (e.key !== "Escape") return;
+    if (panel.classList.contains("open")) closePanel();
+    else dismissSelectionTrigger();
   });
 
   // Shield the thread input from the host page's global keyboard handlers.
@@ -1172,7 +1354,7 @@
     textarea.value = "";
     autoGrow();
     sendBtn.disabled = true;
-    thread.push({ role: "user", text: question });
+    thread.push({ role: "user", text: question, selectedPassage: activePassage });
     renderThread();
 
     const pending = document.createElement("div");

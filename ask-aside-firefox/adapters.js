@@ -13,6 +13,7 @@ const ADAPTERS = [
         document.querySelectorAll("[data-message-author-role]")
       ).map((el) => ({
         el,
+        contentEl: el,
         role:
           el.getAttribute("data-message-author-role") === "assistant"
             ? "assistant"
@@ -73,7 +74,12 @@ const ADAPTERS = [
         if (r) {
           const body =
             r.querySelector(".model-response-text, message-content") || r;
-          out.push({ el: r, role: "assistant", text: body.innerText.trim() });
+          out.push({
+            el: r,
+            contentEl: body,
+            role: "assistant",
+            text: body.innerText.trim(),
+          });
         }
       }
       return out;

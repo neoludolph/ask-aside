@@ -39,17 +39,22 @@ only `.env.example` is committed.
 1. Open `chatgpt.com` or `gemini.google.com` and have a chat
 2. Under each AI answer, a **"?" button** appears in the action toolbar
    (far right, next to the other icons)
-3. Clicking it opens a floating thread box next to the answer (light/dark to
+3. Alternatively, select text within an AI answer and use the floating **"?"**
+   beside the selection to focus the thread on that exact passage. The passage
+   appears above the input in quotation marks; its **"✕"** removes the passage
+   focus for subsequent questions without closing or clearing the thread.
+4. Clicking either question-mark button opens a floating thread box next to the
+   answer (light/dark to
    match the page): the follow-up thread with its own input field
    (Enter sends, Shift+Enter inserts a line break, Esc closes)
-4. Drag the panel by its header. Resize it from any edge or use the visible grip
+5. Drag the panel by its header. Resize it from any edge or use the visible grip
    in the bottom-right corner. Its default size and automatic position are
    restored whenever a thread is opened.
-5. As context, the main chat **up to and including** the anchored answer is sent
+6. As context, the main chat **up to and including** the anchored answer is sent
    to the API – later messages and the thread itself stay separate from the main
    chat. The anchored answer is not repeated in the panel (you already see it in
    the main chat)
-6. Close the panel (✕ / click outside / Esc) → the main chat is exactly where it
+7. Close the panel (✕ / click outside / Esc) → the main chat is exactly where it
    was. Threads are **not persisted**: they live only in memory and any leftover
    thread data in extension-local storage is cleared on close, so reopening
    starts fresh.
@@ -59,7 +64,7 @@ only `.env.example` is committed.
 | File | Responsibility |
 |---|---|
 | `adapters.js` | Site adapters (selectors, conversation key) for ChatGPT and Gemini. New sites: add an object + a `manifest.json` match |
-| `content.js` | "?" button, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
+| `content.js` | Toolbar and selection "?" buttons, isolated shadow-DOM thread UI, keyboard-event shielding, drag/resize behavior, and the animated waiting indicator |
 | `background.js` | API call in the background script – either the Claude API directly (`claude-opus-4-8`) or OpenRouter (OpenAI-compatible endpoint, any model); keys are kept out of the page context and sent directly to the configured API |
 | `options.html/js` | Provider selection, entry, and local storage of the API keys |
 | `env.js` | Reads the optional bundled `.env` and merges it under the stored settings (storage wins) |

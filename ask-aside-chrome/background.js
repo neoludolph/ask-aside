@@ -22,7 +22,10 @@ the same language as the user's current follow-up question. For the first turn,
 use the language of the text after "Follow-up:", not the language of the quoted
 conversation. If the question has no discernible language, use the language of
 the preceding follow-up. Answer clearly and in a way that helps the user learn,
-without continuing the main chat.`;
+without continuing the main chat. When a follow-up includes a selected passage,
+focus that turn on the passage while using the full conversation for context. A
+later follow-up without a selected passage refers to the whole last assistant
+answer; do not retroactively change the focus of earlier turns.`;
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type !== "ask") return;
@@ -46,6 +49,18 @@ async function handleAsk({ context, thread }) {
     .map((m) => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.text}`)
     .join("\n\n");
 
+  const serializeUserTurn = (turn) => {
+    const passage =
+      typeof turn.selectedPassage === "string" && turn.selectedPassage.trim()
+        ? turn.selectedPassage
+        : null;
+    const focus = passage
+      ? `This follow-up specifically refers to the following selected passage ` +
+        `from the last assistant answer:\nSelected passage: ${JSON.stringify(passage)}\n\n`
+      : "";
+    return `${focus}Follow-up: ${turn.text}`;
+  };
+
   const [firstQuestion, ...rest] = thread;
   const messages = [
     {
@@ -53,9 +68,12 @@ async function handleAsk({ context, thread }) {
       content:
         `<conversation>\n${transcript}\n</conversation>\n\n` +
         `The follow-up refers to the last assistant answer in the conversation.\n\n` +
-        `Follow-up: ${firstQuestion.text}`,
+        serializeUserTurn(firstQuestion),
     },
-    ...rest.map((m) => ({ role: m.role, content: m.text })),
+    ...rest.map((m) => ({
+      role: m.role,
+      content: m.role === "user" ? serializeUserTurn(m) : m.text,
+    })),
   ];
 
   try {
