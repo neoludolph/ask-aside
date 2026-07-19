@@ -22,7 +22,8 @@
         <circle cx="50" cy="12" r="4" fill="#FF6363"></circle>
         <circle cx="50" cy="88" r="2.5" fill="#FF6363" opacity="0.6"></circle>
       </g>
-    </svg>`;
+    </svg>
+    <span class="thinking-label">Thinking</span>`;
 
   // ---------- Overlay host with shadow DOM ----------
 
@@ -136,7 +137,12 @@
       /* Animated "thinking" indicator, shown inside the assistant bubble.
          Its height is matched to the user's message bubble in JS. */
       .msg.pending { display: flex; align-items: center; padding: 0 11px; }
-      .msg.pending svg { display: block; height: 62%; width: auto; }
+      .msg.pending svg { display: block; height: 62%; width: auto; flex-shrink: 0; }
+      .msg.pending .thinking-label {
+        margin-left: 8px; color: var(--muted); font-style: italic;
+        animation: aa-text-pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes aa-text-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
       .anim-pulse-slow  { transform-box: view-box; transform-origin: 50% 50%; animation: aa-pulse 2s ease-in-out infinite; }
       .anim-rotate-cw   { transform-box: view-box; transform-origin: 50% 50%; animation: aa-spin 6s linear infinite; }
       .anim-rotate-ccw  { transform-box: view-box; transform-origin: 50% 50%; animation: aa-spin 9s linear infinite reverse; }
@@ -144,7 +150,7 @@
       @keyframes aa-spin   { to { transform: rotate(360deg); } }
       @keyframes bounce-custom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
       @media (prefers-reduced-motion: reduce) {
-        .anim-pulse-slow, .anim-rotate-cw, .anim-rotate-ccw, .msg.pending svg path { animation: none !important; }
+        .anim-pulse-slow, .anim-rotate-cw, .anim-rotate-ccw, .msg.pending svg path, .msg.pending .thinking-label { animation: none !important; }
       }
     </style>
     <div id="panel">
