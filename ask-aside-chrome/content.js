@@ -184,8 +184,23 @@
       @keyframes aa-pulse  { 0%, 100% { transform: scale(.8); opacity: .15; } 50% { transform: scale(1.2); opacity: .35; } }
       @keyframes aa-spin   { to { transform: rotate(360deg); } }
       @keyframes bounce-custom { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+      /* Blinking caret appended to an assistant bubble while its text is
+         being progressively revealed, faking a live token stream. */
+      .msg.streaming > :last-child::after {
+        content: "";
+        display: inline-block;
+        width: 0.5em; height: 1.05em;
+        margin-left: 1px;
+        vertical-align: -0.18em;
+        background: currentColor;
+        opacity: .7;
+        border-radius: 1px;
+        animation: aa-caret 1s steps(1) infinite;
+      }
+      @keyframes aa-caret { 0%, 50% { opacity: .7; } 50.01%, 100% { opacity: 0; } }
       @media (prefers-reduced-motion: reduce) {
         .anim-pulse-slow, .anim-rotate-cw, .anim-rotate-ccw, .msg.pending svg path, .msg.pending .thinking-label { animation: none !important; }
+        .msg.streaming > :last-child::after { animation: none !important; }
       }
     </style>
     <div id="panel">
@@ -995,6 +1010,50 @@
     threadBox.scrollTop = threadBox.scrollHeight;
   }
 
+  // Outputs arrive from the API in one piece (no real streaming), so we fake a
+  // live token stream: reveal the assistant text progressively, re-rendering
+  // the markdown as it grows, with a blinking caret trailing the last chunk.
+  function streamAssistant(div, fullText) {
+    const reduce =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !fullText) {
+      div.innerHTML = renderMarkdown(fullText);
+      threadBox.scrollTop = threadBox.scrollHeight;
+      return Promise.resolve();
+    }
+
+    const len = fullText.length;
+    // Pace the reveal: quick for short replies, capped so long ones don't drag.
+    const duration = Math.min(4000, Math.max(500, len * 7));
+
+    return new Promise((resolve) => {
+      div.classList.add("streaming");
+      const start = performance.now();
+      const stickToBottom = () =>
+        threadBox.scrollHeight - threadBox.scrollTop - threadBox.clientHeight < 40;
+
+      function frame(now) {
+        const t = Math.min(1, (now - start) / duration);
+        // Ease-out so the stream slows slightly as it finishes.
+        const eased = 1 - Math.pow(1 - t, 2);
+        const shown = Math.max(1, Math.round(eased * len));
+        const atBottom = stickToBottom();
+        div.innerHTML = renderMarkdown(fullText.slice(0, shown));
+        if (atBottom) threadBox.scrollTop = threadBox.scrollHeight;
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          div.classList.remove("streaming");
+          div.innerHTML = renderMarkdown(fullText);
+          if (atBottom) threadBox.scrollTop = threadBox.scrollHeight;
+          resolve();
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const question = textarea.value.trim();
@@ -1056,6 +1115,12 @@
     if (reply.ok) {
       thread.push({ role: "assistant", text: reply.text });
       renderThread();
+      // Fake a live stream into the freshly rendered assistant bubble.
+      const bubble = threadBox.lastElementChild;
+      if (bubble) {
+        bubble.innerHTML = "";
+        await streamAssistant(bubble, reply.text);
+      }
     } else {
       thread.pop(); // don't keep a failed question
       renderThread();
