@@ -123,8 +123,9 @@
       .input-wrap { position: relative; display: flex; }
       textarea {
         flex: 1; resize: none;
-        min-height: 56px; max-height: 180px;
-        padding: 8px 46px 8px 8px; font-size: 14px;
+        height: 38px; min-height: 38px; max-height: 180px;
+        padding: 8px 46px 8px 12px;
+        font-size: 14px; line-height: 20px;
         border: 1px solid var(--border); border-radius: 10px;
         background: var(--bg); color: var(--fg);
         outline: none;
@@ -207,7 +208,7 @@
       <div id="thread"></div>
       <form>
         <div class="input-wrap">
-          <textarea placeholder="Your follow-up about this answer … (Enter to send)"></textarea>
+          <textarea rows="1" placeholder="Your follow-up about this answer … (Enter to send)"></textarea>
           <button type="submit" aria-label="Send" title="Send" disabled>↑</button>
         </div>
       </form>
@@ -560,8 +561,10 @@
   // Grow the height to fit the content (up to max-height, after which the
   // textarea scrolls internally – without a visible scrollbar).
   function autoGrow() {
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
+    textarea.style.height = "38px";
+    if (textarea.scrollHeight <= textarea.clientHeight) return;
+    const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+    textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
   }
 
   // Gray out the send button while no text has been entered.

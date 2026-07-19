@@ -17,8 +17,12 @@ const OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1";
 const SYSTEM_PROMPT = `You answer follow-up questions about a specific answer from an
 AI chat the user is having with another assistant. You receive the prior
 conversation up to and including the answer the follow-up refers to. Ground your
-response in exactly that answer and the conversation before it. Answer in English,
-clearly and in a way that helps the user learn, without continuing the main chat.`;
+response in exactly that answer and the conversation before it. Always answer in
+the same language as the user's current follow-up question. For the first turn,
+use the language of the text after "Follow-up:", not the language of the quoted
+conversation. If the question has no discernible language, use the language of
+the preceding follow-up. Answer clearly and in a way that helps the user learn,
+without continuing the main chat.`;
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type !== "ask") return;
