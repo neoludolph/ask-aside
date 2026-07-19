@@ -84,6 +84,36 @@
       .msg.pending { color: var(--muted); font-style: italic; }
       .msg.error { background: var(--error-bg); color: var(--error-fg); }
 
+      .msg.markdown { white-space: normal; }
+      .msg.markdown > *:first-child { margin-top: 0; }
+      .msg.markdown > *:last-child { margin-bottom: 0; }
+      .msg.markdown p { margin: 0 0 8px; }
+      .msg.markdown h1, .msg.markdown h2, .msg.markdown h3,
+      .msg.markdown h4, .msg.markdown h5, .msg.markdown h6 {
+        margin: 12px 0 6px; line-height: 1.25; font-weight: 600;
+      }
+      .msg.markdown h1 { font-size: 1.3em; }
+      .msg.markdown h2 { font-size: 1.2em; }
+      .msg.markdown h3 { font-size: 1.1em; }
+      .msg.markdown h4, .msg.markdown h5, .msg.markdown h6 { font-size: 1em; }
+      .msg.markdown ul, .msg.markdown ol { margin: 0 0 8px; padding-left: 22px; }
+      .msg.markdown li { margin: 2px 0; }
+      .msg.markdown a { color: var(--accent); text-decoration: underline; }
+      .msg.markdown code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: .88em; padding: 1px 5px; border-radius: 5px;
+        background: rgba(127,127,127,.18);
+      }
+      .msg.markdown pre {
+        margin: 0 0 8px; padding: 10px 12px; border-radius: 8px;
+        background: rgba(127,127,127,.14); overflow-x: auto;
+      }
+      .msg.markdown pre code { padding: 0; background: none; font-size: .85em; }
+      .msg.markdown blockquote {
+        margin: 0 0 8px; padding: 2px 0 2px 10px;
+        border-left: 3px solid var(--border); color: var(--muted);
+      }
+
       form { margin-top: auto; padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
       .input-wrap { position: relative; display: flex; }
       textarea {
@@ -527,12 +557,143 @@
 
   // ---------- Render / send the thread ----------
 
+  // Minimal, self-contained Markdown -> HTML renderer. A content script can't
+  // load an external library (CSP), so this covers the constructs a chat reply
+  // actually uses: headings, bold/italic, inline & fenced code, lists, block-
+  // quotes, links and paragraphs. All raw text is HTML-escaped up front, so the
+  // only markup produced is what this function emits.
+  function renderMarkdown(src) {
+    const esc = (s) =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    const inline = (s) =>
+      esc(s)
+        .replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`)
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+        .replace(/\b_([^_]+)_\b/g, "<em>$1</em>")
+        .replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+          (_, t, u) =>
+            `<a href="${u.replace(/"/g, "&quot;")}" target="_blank" rel="noopener noreferrer">${t}</a>`
+        );
+
+    const lines = src.replace(/\r\n/g, "\n").split("\n");
+    const out = [];
+    let i = 0;
+    let listType = null; // "ul" | "ol"
+    const closeList = () => {
+      if (listType) {
+        out.push(`</${listType}>`);
+        listType = null;
+      }
+    };
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Fenced code block
+      const fence = line.match(/^```(.*)$/);
+      if (fence) {
+        closeList();
+        const body = [];
+        i++;
+        while (i < lines.length && !/^```/.test(lines[i])) {
+          body.push(lines[i]);
+          i++;
+        }
+        i++; // skip closing fence
+        out.push(`<pre><code>${esc(body.join("\n"))}</code></pre>`);
+        continue;
+      }
+
+      // Heading
+      const heading = line.match(/^(#{1,6})\s+(.*)$/);
+      if (heading) {
+        closeList();
+        const level = heading[1].length;
+        out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+        i++;
+        continue;
+      }
+
+      // Blockquote
+      if (/^>\s?/.test(line)) {
+        closeList();
+        out.push(`<blockquote>${inline(line.replace(/^>\s?/, ""))}</blockquote>`);
+        i++;
+        continue;
+      }
+
+      // Unordered list item
+      const ul = line.match(/^\s*[-*+]\s+(.*)$/);
+      if (ul) {
+        if (listType !== "ul") {
+          closeList();
+          out.push("<ul>");
+          listType = "ul";
+        }
+        out.push(`<li>${inline(ul[1])}</li>`);
+        i++;
+        continue;
+      }
+
+      // Ordered list item
+      const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (ol) {
+        if (listType !== "ol") {
+          closeList();
+          out.push("<ol>");
+          listType = "ol";
+        }
+        out.push(`<li>${inline(ol[1])}</li>`);
+        i++;
+        continue;
+      }
+
+      // Blank line
+      if (line.trim() === "") {
+        closeList();
+        i++;
+        continue;
+      }
+
+      // Paragraph: gather consecutive non-blank, non-special lines
+      closeList();
+      const para = [line];
+      i++;
+      while (
+        i < lines.length &&
+        lines[i].trim() !== "" &&
+        !/^```/.test(lines[i]) &&
+        !/^#{1,6}\s/.test(lines[i]) &&
+        !/^>\s?/.test(lines[i]) &&
+        !/^\s*[-*+]\s+/.test(lines[i]) &&
+        !/^\s*\d+[.)]\s+/.test(lines[i])
+      ) {
+        para.push(lines[i]);
+        i++;
+      }
+      out.push(`<p>${inline(para.join("\n")).replace(/\n/g, "<br>")}</p>`);
+    }
+    closeList();
+    return out.join("");
+  }
+
   function renderThread() {
     threadBox.innerHTML = "";
     for (const m of thread) {
       const div = document.createElement("div");
       div.className = `msg ${m.role}`;
-      div.textContent = m.text;
+      if (m.role === "assistant") {
+        div.classList.add("markdown");
+        div.innerHTML = renderMarkdown(m.text);
+      } else {
+        div.textContent = m.text;
+      }
       threadBox.appendChild(div);
     }
     threadBox.scrollTop = threadBox.scrollHeight;
