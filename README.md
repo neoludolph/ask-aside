@@ -20,6 +20,52 @@ updates the composer reference and makes that answer the thread's current anchor
 The color dot in the thread header opens a persistent six-color pastel accent
 palette shared by future threads.
 
+## See AskAside in action
+
+<p align="center">
+  <img src="images-for-github-readme/5.png" width="100%" alt="AskAside displaying a detailed follow-up answer beside the original ChatGPT conversation">
+</p>
+
+<p align="center"><em>Dig deeper without losing your place in the main conversation.</em></p>
+
+<table>
+  <tr>
+    <th width="50%">Ask about any answer</th>
+    <th width="50%">Focus on an exact passage</th>
+  </tr>
+  <tr>
+    <td><img src="images-for-github-readme/1.png" alt="Question-mark button in the action toolbar below a ChatGPT answer"></td>
+    <td><img src="images-for-github-readme/2.png" alt="Floating AskAside button next to selected text in a ChatGPT answer"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Open a side thread straight from the answer toolbar.</sub></td>
+    <td align="center"><sub>Select text to ask about only what matters.</sub></td>
+  </tr>
+</table>
+
+### Keep the source in sight
+
+<p align="center">
+  <img src="images-for-github-readme/3.png" width="100%" alt="AskAside composer beside ChatGPT with a selected equation attached as context">
+</p>
+
+<p align="center"><em>The referenced passage stays attached while you compose your follow-up.</em></p>
+
+<table>
+  <tr>
+    <th width="50%">Follow the response</th>
+    <th width="50%">Make it yours</th>
+  </tr>
+  <tr>
+    <td><img src="images-for-github-readme/4.png" alt="AskAside thread showing a referenced passage, user question, and thinking state"></td>
+    <td><img src="images-for-github-readme/6.png" alt="AskAside pastel accent color picker with six color choices"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Context and progress remain visible inside the thread.</sub></td>
+    <td align="center"><sub>Choose a pastel accent that persists across new threads.</sub></td>
+  </tr>
+</table>
+
 ## Repository layout
 
 | Folder | Description |
