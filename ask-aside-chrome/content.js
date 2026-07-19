@@ -395,7 +395,6 @@
   const header = shadow.querySelector("#panel header");
   const VIEWPORT_MARGIN = 8;
   const MIN_PANEL_WIDTH = 300;
-  const MIN_PANEL_HEIGHT = 220;
   let dragging = false;
   let dragDX = 0;
   let dragDY = 0;
@@ -439,6 +438,11 @@
         bottom: rect.bottom,
         width: rect.width,
         height: rect.height,
+        minHeight: Math.ceil(
+          header.offsetHeight +
+            form.offsetHeight +
+            (panel.offsetHeight - panel.clientHeight)
+        ),
       };
       panel.classList.add("resized");
       panel.style.width = `${rect.width}px`;
@@ -467,7 +471,7 @@
       }
       if (resizing.edges.includes("s")) {
         const maxHeight = Math.max(1, bottomBoundary - resizing.top);
-        const minHeight = Math.min(MIN_PANEL_HEIGHT, maxHeight);
+        const minHeight = Math.min(resizing.minHeight, maxHeight);
         height = Math.max(minHeight, Math.min(resizing.height + dy, maxHeight));
       }
       if (resizing.edges.includes("w")) {
@@ -483,7 +487,7 @@
       }
       if (resizing.edges.includes("n")) {
         const minHeight = Math.min(
-          MIN_PANEL_HEIGHT,
+          resizing.minHeight,
           Math.max(1, resizing.bottom - VIEWPORT_MARGIN)
         );
         top = Math.max(
