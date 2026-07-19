@@ -71,14 +71,24 @@
         border: none; background: none; font-size: 16px; cursor: pointer;
         color: var(--muted); border-radius: 6px; padding: 2px 7px;
       }
-      #close .close-hint { font-size: 11px; font-weight: 400; }
+      #close .close-hint { font-size: 13px; font-weight: 400; }
       #close:hover { background: var(--bubble-ai); color: var(--fg); }
 
       #thread {
         flex: 1; overflow-y: auto; padding: 12px 14px;
         scrollbar-width: none;
       }
-      #thread:empty { display: none; }
+      #thread:empty {
+        min-height: 170px;
+        display: flex; align-items: center; justify-content: center;
+        text-align: center;
+      }
+      #thread:empty::before {
+        content: "Ask aside! Enter your follow-up question without interrupting your chatflow";
+        max-width: 340px;
+        color: var(--muted);
+        font-size: 20px; font-weight: 600; line-height: 1.35;
+      }
       #thread::-webkit-scrollbar { display: none; }
       .msg { margin-bottom: 10px; padding: 8px 11px; border-radius: 12px; white-space: pre-wrap; line-height: 1.45; }
       .msg.user { background: var(--bubble-user); margin-left: 36px; }
