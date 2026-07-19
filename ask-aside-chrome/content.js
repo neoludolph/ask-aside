@@ -119,6 +119,27 @@
       .msg.assistant { background: var(--bubble-ai); margin-right: 18px; }
       .msg.pending { color: var(--muted); font-style: italic; }
       .msg.error { background: var(--error-bg); color: var(--error-fg); }
+      .sent-reference {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start; gap: 7px;
+        margin-bottom: 7px; padding-bottom: 7px;
+        border-bottom: 1px solid var(--border);
+        color: var(--muted); font-size: 12px; line-height: 1.35;
+      }
+      .sent-reference .reference-arrow {
+        color: var(--accent); font-size: 14px; line-height: 1.2;
+      }
+      .sent-reference q {
+        min-width: 0;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .sent-question { white-space: pre-wrap; }
 
       .msg.markdown { white-space: normal; }
       .msg.markdown > *:first-child { margin-top: 0; }
@@ -1288,6 +1309,24 @@
       if (m.role === "assistant") {
         div.classList.add("markdown");
         div.innerHTML = renderMarkdown(m.text);
+      } else if (m.selectedPassage) {
+        const reference = document.createElement("div");
+        reference.className = "sent-reference";
+
+        const arrow = document.createElement("span");
+        arrow.className = "reference-arrow";
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.textContent = "→";
+
+        const quote = document.createElement("q");
+        quote.textContent = m.selectedPassage;
+
+        const question = document.createElement("div");
+        question.className = "sent-question";
+        question.textContent = m.text;
+
+        reference.append(arrow, quote);
+        div.append(reference, question);
       } else {
         div.textContent = m.text;
       }
@@ -1354,7 +1393,10 @@
     textarea.value = "";
     autoGrow();
     sendBtn.disabled = true;
-    thread.push({ role: "user", text: question, selectedPassage: activePassage });
+    const submittedPassage = activePassage;
+    thread.push({ role: "user", text: question, selectedPassage: submittedPassage });
+    activePassage = null;
+    updateSelectionReference();
     renderThread();
 
     const pending = document.createElement("div");
@@ -1410,6 +1452,8 @@
       }
     } else {
       thread.pop(); // don't keep a failed question
+      activePassage = submittedPassage;
+      updateSelectionReference();
       renderThread();
       const err = document.createElement("div");
       err.className = "msg error";

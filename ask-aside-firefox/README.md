@@ -42,7 +42,9 @@ only `.env.example` is committed.
 3. Alternatively, select text within an AI answer and use the floating **"?"**
    beside the selection to focus the thread on that exact passage. The passage
    appears above the input in quotation marks; its **"✕"** removes the passage
-   focus for subsequent questions without closing or clearing the thread.
+   focus for subsequent questions without closing or clearing the thread. When
+   sent, the passage moves into a compact quoted header in the user bubble and
+   the next question starts without a passage focus.
 4. Clicking either question-mark button opens a floating thread box next to the
    answer (light/dark to
    match the page): the follow-up thread with its own input field

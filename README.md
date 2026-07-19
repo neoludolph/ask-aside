@@ -13,7 +13,8 @@ dragged by its header and resized from any edge or from the bottom-right grip.
 You can also select text inside an AI answer. A floating **"?" button** appears
 at the selection and opens the thread with that passage shown above the input.
 Removing the passage with its **"✕" button** keeps the thread open and changes
-subsequent questions back to the whole anchored answer.
+subsequent questions back to the whole anchored answer. When a focused question
+is sent, its passage moves into a compact quoted header inside the user bubble.
 
 ## Repository layout
 
