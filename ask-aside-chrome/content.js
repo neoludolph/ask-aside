@@ -80,7 +80,8 @@
       }
       #thread:empty {
         min-height: 170px;
-        display: flex; align-items: center; justify-content: center;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 10px;
         text-align: center;
       }
       #thread:empty::before {
@@ -88,6 +89,11 @@
         max-width: 340px;
         color: var(--muted);
         font-size: 20px; font-weight: 600; line-height: 1.35;
+      }
+      #thread:empty::after {
+        content: "Type /clear to clear this thread and its follow-up context.";
+        color: var(--muted);
+        font-size: 12px; font-weight: 400; line-height: 1.4;
       }
       #thread::-webkit-scrollbar { display: none; }
       .msg { margin-bottom: 10px; padding: 8px 11px; border-radius: 12px; white-space: pre-wrap; line-height: 1.45; }
@@ -526,13 +532,18 @@
 
   document.addEventListener("mouseup", endPointerInteraction);
 
+  function clearThread() {
+    thread = [];
+    renderThread();
+    textarea.value = "";
+    autoGrow();
+    updateSendState();
+  }
+
   function closePanel() {
     endPointerInteraction();
     panel.classList.remove("open");
-    thread = [];
-    threadBox.innerHTML = "";
-    textarea.value = "";
-    autoGrow();
+    clearThread();
     // Remove stale thread data from browser storage (API key etc. stays).
     chrome.storage.local.get(null).then((all) => {
       const threadKeys = Object.keys(all).filter((k) => k.startsWith("threads:"));
@@ -1118,7 +1129,13 @@
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const question = textarea.value.trim();
-    if (!question || sendBtn.disabled) return;
+    if (!question) return;
+    if (question === "/clear") {
+      clearThread();
+      textarea.focus();
+      return;
+    }
+    if (sendBtn.disabled) return;
 
     textarea.value = "";
     autoGrow();
